@@ -211,16 +211,19 @@ async function setupGuild(guildId, onProgress) {
 async function discord(path, options) {
   options = options || {};
   const method = options.method || 'GET';
-  const maxAttempts = method === 'GET' || method === 'PATCH' ? 4 : 2;
+  const maxAttempts = method === 'GET' || method === 'PATCH' ? 2 : 1;
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const started = Date.now();
+    console.log('DISCORD_API_START', method, path, 'attempt', attempt);
     try {
       const response = await fetch(API + path, {
         method,
         headers: Object.assign({ Authorization: 'Bot ' + process.env.DISCORD_TOKEN }, options.body ? { 'Content-Type': 'application/json' } : {}),
         body: options.body ? JSON.stringify(options.body) : undefined,
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(8000)
       });
+      console.log('DISCORD_API_RESPONSE', method, path, response.status, Date.now() - started + 'ms');
       if (response.status === 429) {
         const data = await response.json();
         await new Promise(resolve => setTimeout(resolve, Math.ceil((data.retry_after || 1) * 1000)));
@@ -232,9 +235,10 @@ async function discord(path, options) {
       return response.json();
     } catch (error) {
       lastError = error;
+      console.error('DISCORD_API_ERROR', method, path, 'attempt', attempt, Date.now() - started + 'ms', error && error.message || error);
       const transient = error instanceof TypeError || error.name === 'TimeoutError' || /UND_ERR_SOCKET|fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(error));
       if (!transient || attempt === maxAttempts) throw error;
-      await new Promise(resolve => setTimeout(resolve, 400 * attempt));
+      await new Promise(resolve => setTimeout(resolve, 300 * attempt));
     }
   }
   throw lastError;

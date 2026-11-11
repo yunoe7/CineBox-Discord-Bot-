@@ -126,10 +126,12 @@ async function setupGuild(guildId, onProgress) {
     }
   };
   if (onProgress) await onProgress({ done: 0, total, phase: 'Connexion', label: 'Lecture des rôles et salons existants', created: 0, checked: 0 });
+  console.log('SETUP_FETCH_ROLES_CHANNELS_START');
   const [roles, channels] = await Promise.all([
     discord('/guilds/' + guildId + '/roles'),
     discord('/guilds/' + guildId + '/channels')
   ]);
+  console.log('SETUP_FETCH_ROLES_CHANNELS_OK', { roles: roles.length, channels: channels.length });
   const created = [];
   const roleIds = {};
   for (const def of defs) {
@@ -239,9 +241,18 @@ async function discord(path, options) {
 }
 async function editOriginal(interaction, content) {
   const url = API + '/webhooks/' + interaction.application_id + '/' + interaction.token + '/messages/@original';
-  const response = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
-  if (!response.ok) console.error('SETUP_EDIT_FAILED', response.status, await response.text());
-  else console.log('SETUP_EDIT_OK');
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+      signal: AbortSignal.timeout(7000)
+    });
+    if (!response.ok) console.error('SETUP_EDIT_FAILED', response.status, await response.text());
+    else console.log('SETUP_EDIT_OK');
+  } catch (error) {
+    console.error('SETUP_EDIT_NETWORK_ERROR', error && error.message || error);
+  }
 }
 function bitset() { return String(Array.from(arguments).reduce((sum, value) => sum | BigInt(value), 0n)); }
 function hasPermission(value, permission) {

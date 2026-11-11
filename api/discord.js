@@ -22,29 +22,34 @@ module.exports = async function handler(req, res) {
     if (!process.env.DISCORD_TOKEN || !interaction.channel_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Le sondage ne peut pas être publié dans ce contexte.', color: 0xed4245 });
     const opts = interaction.data.options || [];
     const get = key => opts.find(option => option.name === key)?.value;
-    const title = get('titre');
+    const title = String(get('titre') || '').trim();
     const films = ['film1','film2','film3','film4'].map(get).filter(Boolean).map(x => String(x).trim()).filter(Boolean);
-    if (!title || films.length < 2) return embedReply(res, { title: '📝 Sondage incomplet', description: 'Ajoute un titre et au moins **deux films** pour lancer le vote.', color: 0xed4245 });
-    try {
-      const embed = {
-        title: '🍿 ' + String(title).slice(0, 240),
-        description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Un vote par clic : les votes multiples ne sont pas encore limités.*',
-        color: 0xd8b45a,
-        fields: films.map((film, index) => ({ name: film.slice(0, 240), value: '0 voix', inline: false })),
-        footer: { text: 'CinéBox • Sondage cinéma' },
-        timestamp: new Date().toISOString()
-      };
-      const components = [{ type: 1, components: films.map((film, index) => ({
-        type: 2, style: 1, custom_id: 'cine_vote_' + index, label: 'Voter · ' + film.slice(0, 65)
-      })) }];
-      await discord('/channels/' + interaction.channel_id + '/messages', {
-        method: 'POST', body: { content: '🎬 **Nouveau sondage cinéma !**', embeds: [embed], components }
-      });
-      return embedReply(res, { title: '🍿 Sondage publié !', description: 'Ton sondage est en ligne dans ce salon. Les membres peuvent maintenant choisir leur film préféré.', color: 0x57f287, footer: { text: 'CinéBox • Organisation des séances' }, timestamp: new Date().toISOString() });
-    } catch (error) {
-      console.error('CINEMA_POLL_CREATE_FAILED', error && error.stack || error);
-      return embedReply(res, { title: '⚠️ Publication impossible', description: 'Le sondage n’a pas pu être publié. Vérifie que CinéBox possède les permissions **Voir le salon**, **Envoyer des messages** et **Intégrer des liens**.', color: 0xed4245, footer: { text: 'CinéBox • Assistance' } });
-    }
+    if (!title || films.length < 2) return embedReply(res, { title: '📝 Sondage incomplet', description: 'Ajoute un titre et au moins deux films pour lancer le vote.', color: 0xed4245 });
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    const task = (async () => {
+      try {
+        const embed = {
+          title: '🍿 ' + title.slice(0, 240),
+          description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Chaque clic compte comme un vote : un vote unique par membre sera ajouté dans une prochaine version.*',
+          color: 0xd8b45a,
+          fields: films.map(film => ({ name: film.slice(0, 240), value: '0 voix', inline: false })),
+          footer: { text: 'CinéBox • Sondage cinéma' },
+          timestamp: new Date().toISOString()
+        };
+        const components = [{ type: 1, components: films.map((film, index) => ({
+          type: 2, style: 1, custom_id: 'cine_vote_' + index, label: 'Voter · ' + film.slice(0, 65)
+        })) }];
+        await discord('/channels/' + interaction.channel_id + '/messages', {
+          method: 'POST', body: { content: '🎬 **Nouveau sondage cinéma !**', embeds: [embed], components }
+        });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '🍿 Sondage publié !', description: 'Ton sondage est en ligne dans ce salon. Les membres peuvent maintenant choisir leur film préféré.', color: 0x57f287, footer: { text: 'CinéBox • Organisation des séances' }, timestamp: new Date().toISOString() }] });
+      } catch (error) {
+        console.error('CINEMA_POLL_CREATE_FAILED', error && error.stack || error);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Publication impossible', description: 'Le sondage n’a pas pu être publié. Vérifie les permissions Voir le salon, Envoyer des messages et Intégrer des liens.', color: 0xed4245, footer: { text: 'CinéBox • Assistance' } }] });
+      }
+    })();
+    waitUntil(task);
+    return;
   }
 
   if (name === 'tirage-cinema') {
@@ -260,33 +265,42 @@ module.exports = async function handler(req, res) {
     const optionName = report ? 'message' : 'idee';
     const value = interaction.data.options && interaction.data.options.find(x => x.name === optionName)?.value;
     if (!value || !process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Envoi impossible', description: 'Il manque des informations pour transmettre ta demande. Préviens un administrateur.', color: 0xed4245 });
-    try {
-      const configuredId = report ? process.env.REPORT_CHANNEL_ID : process.env.SUGGESTION_CHANNEL_ID;
-      let channelId = configuredId;
-      if (!channelId) {
-        const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
-        const targetName = report ? '🐛-signaler-un-bug' : '💡-boîte-à-idées';
-        channelId = channels.find(c => c.name === targetName && c.type === 0)?.id;
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    const task = (async () => {
+      try {
+        const configuredId = report ? process.env.REPORT_CHANNEL_ID : process.env.SUGGESTION_CHANNEL_ID;
+        let channelId = configuredId;
+        if (!channelId) {
+          const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
+          const targetName = report ? '🐛-signaler-un-bug' : '💡-boîte-à-idées';
+          channelId = channels.find(c => c.name === targetName && c.type === 0)?.id;
+        }
+        if (!channelId) {
+          await editOriginal(interaction, { content: '', embeds: [{ title: '🔎 Salon introuvable', description: 'Le salon de destination n’a pas été trouvé. Demande à un administrateur de vérifier la configuration avec /setup.', color: 0xed4245 }] });
+          return;
+        }
+        await discord('/channels/' + channelId + '/messages', { method: 'POST', body: {
+          embeds: [{
+            title: report ? '🐛 Nouveau signalement' : '💡 Nouvelle suggestion',
+            description: String(value).slice(0, 1500),
+            color: report ? 0xef8354 : 0xd8b45a,
+            fields: [
+              { name: 'Membre', value: interaction.member?.user?.username || interaction.user?.username || 'Membre', inline: true },
+              { name: 'Serveur', value: interaction.guild_id || 'Inconnu', inline: true }
+            ],
+            timestamp: new Date().toISOString()
+          }]
+        }});
+        await editOriginal(interaction, { content: '', embeds: [{ title: report ? '🐛 Signalement transmis' : '💡 Suggestion envoyée', description: report ? 'Merci de nous avoir prévenus. L’équipe CinéBox pourra examiner ton signalement.' : 'Merci de contribuer à faire évoluer CinéBox. Ton idée a bien été transmise à l’équipe.', color: 0x57f287, footer: { text: 'CinéBox • Merci pour ta participation' }, timestamp: new Date().toISOString() }] });
+      } catch (error) {
+        console.error('Message delivery failed:', error && error.stack || error);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Transmission échouée', description: 'Ta demande n’a pas pu être transmise. Réessaie dans quelques instants ou contacte un membre de l’équipe.', color: 0xed4245 }] });
       }
-      if (!channelId) return embedReply(res, { title: '🔎 Salon introuvable', description: 'Le salon de destination n’a pas été trouvé. Demande à un administrateur de vérifier la configuration avec `/setup`.', color: 0xed4245 });
-      await discord('/channels/' + channelId + '/messages', { method: 'POST', body: {
-        embeds: [{
-          title: report ? '🐛 Nouveau signalement' : '💡 Nouvelle suggestion',
-          description: String(value).slice(0, 1500),
-          color: report ? 0xef8354 : 0xd8b45a,
-          fields: [
-            { name: 'Membre', value: interaction.member?.user?.username || interaction.user?.username || 'Membre', inline: true },
-            { name: 'Serveur', value: interaction.guild_id || 'Inconnu', inline: true }
-          ],
-          timestamp: new Date().toISOString()
-        }]
-      }});
-      return embedReply(res, { title: report ? '🐛 Signalement transmis' : '💡 Suggestion envoyée', description: report ? 'Merci de nous avoir prévenus. L’équipe CinéBox pourra examiner ton signalement.' : 'Merci de contribuer à faire évoluer CinéBox. Ton idée a bien été transmise à l’équipe.', color: 0x57f287, footer: { text: 'CinéBox • Merci pour ta participation' }, timestamp: new Date().toISOString() });
-    } catch (error) {
-      console.error('Message delivery failed:', error);
-      return embedReply(res, { title: '⚠️ Transmission échouée', description: 'Ta demande n’a pas pu être transmise. Réessaie dans quelques instants ou contacte un membre de l’équipe.', color: 0xed4245 });
-    }
+    })();
+    waitUntil(task);
+    return;
   }
+
   return reply(res, 'Commande inconnue.');
 };
 

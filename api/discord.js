@@ -1,4 +1,5 @@
 const nacl = require('tweetnacl');
+const { waitUntil } = require('@vercel/functions');
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
 const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536' };
@@ -24,25 +25,30 @@ module.exports = async function handler(req, res) {
     if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète.');
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     console.log('SETUP_START', interaction.guild_id);
-    try {
-      const result = await setupGuild(interaction.guild_id, async (state) => {
-        const percent = Math.min(100, Math.round(state.done / state.total * 100));
-        const filled = Math.round(percent / 10);
-        const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
-        const content = '🎬 **CinéBox — Installation du serveur**\\n' + bar + ' **' + percent + '%**\\n' +
-          'Étape **' + state.done + '/' + state.total + '** · ' + state.phase + '\\n' +
-          'Dernière action : ' + state.label + '\\n' +
-          'Créés : **' + state.created + '** · Vérifiés : **' + state.checked + '**';
-        console.log('SETUP_PROGRESS', JSON.stringify(state));
-        await editOriginal(interaction, content);
-      });
-      const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
-      console.log('SETUP_SUCCESS', result);
-      await editOriginal(interaction, '✅ **Structure CinéBox installée !**\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\n' + details);
-    } catch (error) {
-      console.error('SETUP_FAILED', error && error.stack || error);
-      await editOriginal(interaction, '❌ Installation interrompue : ' + String(error.message || error).slice(0, 700));
-    }
+    const task = (async () => {
+      try {
+        console.log('SETUP_BACKGROUND_TASK_STARTED', interaction.guild_id);
+        const result = await setupGuild(interaction.guild_id, async (state) => {
+          const percent = Math.min(100, Math.round(state.done / state.total * 100));
+          const filled = Math.round(percent / 10);
+          const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
+          const content = '🎬 **CinéBox — Installation du serveur**\\n' + bar + ' **' + percent + '%**\\n' +
+            'Étape **' + state.done + '/' + state.total + '** · ' + state.phase + '\\n' +
+            'Dernière action : ' + state.label + '\\n' +
+            'Créés : **' + state.created + '** · Vérifiés : **' + state.checked + '**';
+          console.log('SETUP_PROGRESS', JSON.stringify(state));
+          // Never let a slow Discord webhook update block the actual setup work.
+          void editOriginal(interaction, content);
+        });
+        const details = result.created.length ? result.created.map(x => '• ' + x).join('\\n') : 'Tout était déjà en place : aucun doublon créé.';
+        console.log('SETUP_SUCCESS', result);
+        await editOriginal(interaction, '✅ **Structure CinéBox installée !**\\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\\n' + details);
+      } catch (error) {
+        console.error('SETUP_FAILED', error && error.stack || error);
+        await editOriginal(interaction, '❌ Installation interrompue : ' + String(error.message || error).slice(0, 700));
+      }
+    })();
+    waitUntil(task);
     return;
   }
 

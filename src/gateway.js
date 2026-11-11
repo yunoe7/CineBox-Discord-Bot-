@@ -32,7 +32,7 @@ client.on('guildMemberAdd', async member => {
       member.guild.roles.cache.find(item => item.name === '🍿 Nouveau membre');
     if (role) await member.roles.add(role, 'Bienvenue dans le club CinéBox');
 
-    const channel = getTextChannel(member.guild, process.env.WELCOME_CHANNEL_ID, '👋-bienvenue');
+    const channel = getTextChannel(member.guild, process.env.WELCOME_CHANNEL_ID, '👋•bienvenue');
     if (!channel) return;
 
     const intro = process.env.INTRO_CHANNEL_ID ? '<#' + process.env.INTRO_CHANNEL_ID + '>' : 'le salon de présentation';
@@ -64,7 +64,7 @@ client.on('guildMemberAdd', async member => {
 client.on('guildMemberRemove', async member => {
   console.log('CINEBOX_MEMBER_LEAVE ' + member.user.id);
   try {
-    const channel = getTextChannel(member.guild, process.env.GOODBYE_CHANNEL_ID || process.env.WELCOME_CHANNEL_ID, '👋-bienvenue');
+    const channel = getTextChannel(member.guild, process.env.GOODBYE_CHANNEL_ID || process.env.WELCOME_CHANNEL_ID, '👋•bienvenue');
     if (!channel) return;
     const embed = new EmbedBuilder()
       .setColor(0x64748b)

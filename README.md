@@ -13,7 +13,7 @@ Discord envoie les commandes slash et les clics sur composants à `/api/discord`
 - `CLIENT_ID` : identifiant de l’application Discord.
 - `GUILD_ID` : identifiant du serveur pour l’enregistrement des commandes.
 - `REPORT_CHANNEL_ID` : salon de signalement (facultatif si le salon créé par `/setup` est utilisé).
-- `SUGGESTION_CHANNEL_ID` : salon de suggestions (facultatif si le salon créé par `/setup` est utilisé).
+- `SUGGESTION_CHANNEL_ID` : salon de suggestions (facultatif si le salon créé par `/setup` est utilisé).\n\nPour le service Gateway sur Railway :\n- `WELCOME_CHANNEL_ID` : salon de bienvenue (facultatif, défaut `👋-bienvenue`).\n- `GOODBYE_CHANNEL_ID` : salon de départ (facultatif, défaut salon de bienvenue).\n- `NEW_MEMBER_ROLE_ID` : rôle attribué automatiquement (facultatif, défaut `🍿 Nouveau membre`).\n- `INTRO_CHANNEL_ID` et `RULES_CHANNEL_ID` : salons à mentionner dans le message (facultatifs).
 
 Ne jamais publier de token dans GitHub ou dans une conversation. Si un token a été exposé, le réinitialiser dans le Developer Portal puis mettre à jour Vercel.
 
@@ -39,7 +39,7 @@ Le projet est relié à Vercel et les commandes sont enregistrées pendant le bu
 
 L’endpoint d’interactions Discord doit pointer vers `https://TON-DOMAINE-VERCEL/api/discord`.
 
-## Limites connues
+## Service Gateway Railway\n\nCréer un service Railway depuis ce dépôt et utiliser la commande `npm run start:gateway`. Ajouter `DISCORD_TOKEN` et, si souhaité, les identifiants de salons/rôle ci-dessus. Dans le Developer Portal Discord, activer l’intent privilégié **Server Members Intent**. Le bot doit disposer de Voir le salon, Envoyer des messages, Intégrer des liens et Gérer les rôles (avec son rôle placé au-dessus de `🍿 Nouveau membre`). Ce service écoute les arrivées et départs et attribue le rôle d’accueil. Les commandes slash et l’endpoint HTTP Vercel restent séparés.\n\n## Limites connues
 
 - Les votes du sondage actuel comptent chaque clic. Ils ne garantissent pas encore un vote unique par membre.
 - Les recommandations utilisent un catalogue local intégré au code ; elles ne consultent pas encore une base de données externe.

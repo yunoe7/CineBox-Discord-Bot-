@@ -24,7 +24,7 @@ Ne jamais publier de token dans GitHub ou dans une conversation. Si un token a �
 - `/tirage-cinema` : tire au sort un film parmi 2 à 4 propositions.
 - `/recommandation-cinema` : recommande un film selon le genre et l’ambiance.
 - `/quiz-cinema` : lance une question de culture cinéma avec quatre réponses interactives.
-- `/programmer-seance` : crée un événement Discord lié à un salon vocal, avec date et heure locales Europe/Paris. Nécessite la permission Gérer les événements.
+- `/programmer-seance` : crée un événement Discord lié à un salon vocal, avec date et heure locales Europe/Paris. Nécessite la permission Créer des événements (ou Gérer les événements).
 
 ### Communauté et administration
 - `/help` : guide des commandes.

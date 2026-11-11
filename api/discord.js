@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
     try {
       const embed = {
         title: '🍿 ' + String(title).slice(0, 240),
-        description: 'La communauté choisit la prochaine séance.\\n\\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\\n\\n*Un vote par clic : les votes multiples ne sont pas encore limités.*',
+        description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Un vote par clic : les votes multiples ne sont pas encore limités.*',
         color: 0xd8b45a,
         fields: films.map((film, index) => ({ name: film.slice(0, 240), value: '0 voix', inline: false })),
         footer: { text: 'CinéBox • Sondage cinéma' },
@@ -57,9 +57,9 @@ module.exports = async function handler(req, res) {
     if (films.length < 2) return reply(res, 'Ajoute au moins deux films pour effectuer le tirage.');
     const winner = films[Math.floor(Math.random() * films.length)];
     const others = films.filter(film => film !== winner);
-    const description = 'Le hasard a parlé… Préparez le pop-corn et installez-vous ! 🍿\\n\\n' +
-      '**🎞️ Film sélectionné**\\n# ' + winner.slice(0, 200) +
-      (others.length ? '\\n\\n**Autres films en compétition**\\n' + others.map(film => '• ' + film.slice(0, 100)).join('\\n') : '');
+    const description = 'Le hasard a parlé… Préparez le pop-corn et installez-vous ! 🍿\n\n' +
+      '**🎞️ Film sélectionné**\n# ' + winner.slice(0, 200) +
+      (others.length ? '\n\n**Autres films en compétition**\n' + others.map(film => '• ' + film.slice(0, 100)).join('\n') : '');
     return res.status(200).json({
       type: 4,
       data: {
@@ -92,7 +92,7 @@ module.exports = async function handler(req, res) {
           const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
           const progressEmbed = {
             title: '🎬 Installation de CinéBox',
-            description: bar + ' **' + percent + '%**\\n\\n' + (state.label || 'Préparation en cours…'),
+            description: bar + ' **' + percent + '%**\n\n' + (state.label || 'Préparation en cours…'),
             color: 0xd8b45a,
             fields: [
               { name: 'Étape', value: state.done + ' / ' + state.total, inline: true },
@@ -110,7 +110,7 @@ module.exports = async function handler(req, res) {
         await editOriginal(interaction, { content: '', embeds: [{ title: '✨ Votre serveur CinéBox est prêt !', description: 'La structure du club a été installée avec succès. Place à la communauté ! 🍿', color: 0x57f287, fields: [{ name: 'Éléments créés', value: String(result.created.length), inline: true }, { name: 'Rôles', value: String(result.roles), inline: true }, { name: 'Salons texte', value: String(result.textChannels), inline: true }, { name: 'Salons vocaux', value: String(result.voiceChannels), inline: true }, { name: 'Détails', value: details.slice(0, 1000) }], footer: { text: 'CinéBox • Installation terminée' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('SETUP_FAILED', error && error.stack || error);
-        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Installation interrompue', description: 'CinéBox n’a pas pu terminer la configuration.\\n\\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'CinéBox • Assistance administrateur' } }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Installation interrompue', description: 'CinéBox n’a pas pu terminer la configuration.\n\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'CinéBox • Assistance administrateur' } }] });
       }
     })();
     waitUntil(task);

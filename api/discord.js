@@ -29,11 +29,12 @@ module.exports = async function handler(req, res) {
     const task = (async () => {
       try {
         const embed = {
+          author: { name: 'CINÉBOX  /  LE CHOIX DE LA COMMUNAUTÉ' },
           title: '🍿 ' + title.slice(0, 240),
           description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Chaque clic compte comme un vote : un vote unique par membre sera ajouté dans une prochaine version.*',
           color: 0xd8b45a,
-          fields: films.map(film => ({ name: film.slice(0, 240), value: '0 voix', inline: false })),
-          footer: { text: 'CinéBox • Sondage cinéma' },
+          fields: films.map((film, index) => ({ name: String(index + 1).padStart(2, '0') + '  /  ' + film.slice(0, 220), value: '🎟️  **0 voix**', inline: true })),
+          footer: { text: 'CINÉBOX  •  VOTE COMMUNAUTAIRE  •  🍿' },
           timestamp: new Date().toISOString()
         };
         const components = [{ type: 1, components: films.map((film, index) => ({
@@ -70,10 +71,11 @@ module.exports = async function handler(req, res) {
       data: {
         flags: EPHEMERAL,
         embeds: [{
-          title: '🎬  LA SÉANCE CINÉBOX EST CHOISIE !',
+          author: { name: 'CINÉBOX  /  LE HASARD A PARLÉ' },
+          title: '🎬 LA SÉANCE EST CHOISIE !',
           description,
           color: 0xd8b45a,
-          footer: { text: 'CinéBox • Le Club des Cinéphiles' },
+          footer: { text: 'CINÉBOX  •  LE FILM DU CLUB  •  🍿' },
           timestamp: new Date().toISOString()
         }]
       }
@@ -93,7 +95,7 @@ module.exports = async function handler(req, res) {
     const moodNames = { detente: 'Détente', frissons: 'Frissons', evasion: 'Évasion', emotion: 'Émotion', reflexion: 'Réflexion', surprise: 'Surprise' };
     const genreNames = { tous: 'Tous les genres', aventure: 'Aventure', animation: 'Animation', comedie: 'Comédie', drame: 'Drame', 'science-fiction': 'Science-fiction', thriller: 'Thriller' };
     return embedReply(res, {
-      author: { name: 'CINÉBOX • SÉLECTION DU CLUB' },
+      author: { name: 'CINÉBOX  /  SÉLECTION DU CLUB' },
       title: '🎞️ ' + movie.title,
       description: movie.synopsis,
       color: 0xd8b45a,
@@ -103,7 +105,7 @@ module.exports = async function handler(req, res) {
         { name: 'GENRE', value: genreNames[genre] || 'Tous les genres', inline: true },
         { name: 'FICHE', value: movie.year + ' • ' + movie.duration + ' min', inline: true }
       ],
-      footer: { text: 'CinéBox • Une recommandation, une nouvelle séance 🍿' },
+      footer: { text: 'CINÉBOX  •  TA PROCHAINE PÉPITE  •  🍿' },
       timestamp: new Date().toISOString()
     });
   }
@@ -121,11 +123,12 @@ module.exports = async function handler(req, res) {
       data: {
         flags: EPHEMERAL,
         embeds: [{
-          author: { name: 'CINÉBOX • LE QUIZ DU CLUB' },
+          author: { name: 'CINÉBOX  /  LE QUIZ DU CLUB' },
           title: '🎬 Question de culture cinéma',
           description: '**' + question.question + '**\n\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
           color: 0xd8b45a,
-          footer: { text: 'CinéBox • Le défi du cinéphile' }
+          footer: { text: 'CINÉBOX  •  1 QUESTION, 4 RÉPONSES  •  🍿' },
+          timestamp: new Date().toISOString()
         }],
         components
       }
@@ -189,7 +192,8 @@ module.exports = async function handler(req, res) {
   if (name === 'ping') {
     const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;
     return embedReply(res, {
-      title: '🎬 CINÉBOX • CONTRÔLE DE PROJECTION',
+      author: { name: 'CINÉBOX  /  SYSTÈME DE PROJECTION' },
+      title: '🎬 CONTRÔLE DE PROJECTION',
       description: '## 🟢 Tout est prêt !\nLe bot est opérationnel et répond aux commandes.',
       color: 0x57f287,
       fields: [
@@ -197,7 +201,7 @@ module.exports = async function handler(req, res) {
         { name: 'TEMPS DE TRAITEMENT', value: elapsed === null ? 'Mesure indisponible' : '**' + elapsed + ' ms**', inline: true },
         { name: 'PROCHAINE ÉTAPE', value: 'Choisis un film avec `/sondage-cinema` ou lance un tirage avec `/tirage-cinema`.' }
       ],
-      footer: { text: 'CinéBox • Le club des cinéphiles' },
+      footer: { text: 'CINÉBOX  •  SYSTÈME OPÉRATIONNEL  •  🍿' },
       timestamp: new Date().toISOString()
     });
   }
@@ -206,16 +210,16 @@ module.exports = async function handler(req, res) {
     data: {
       flags: EPHEMERAL,
       embeds: [{
-        author: { name: 'CINÉBOX  •  LE CLUB DES CINÉPHILES' },
-        title: '🎟️  TON PASS POUR LA PROCHAINE SÉANCE',
-        description: 'Retrouve ici les commandes essentielles pour faire vivre le serveur.\n*Choisis ta catégorie et lance ta commande directement dans Discord.*',
+        author: { name: 'CINÉBOX  /  LE CLUB DES CINÉPHILES' },
+        title: '🎟️ TON PASS POUR LA PROCHAINE SÉANCE',
+        description: 'Bienvenue dans ton espace de contrôle CinéBox.\nExplore les outils du club, organise les soirées et partage ta passion du cinéma.\n\n*Une commande, et la séance commence.*',
         color: 0xd8b45a,
         fields: [
-          { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote pour choisir le prochain film.\n\n`/tirage-cinema`\nConfie le choix de la séance au hasard.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste ta culture cinéma avec une question interactive.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste ta culture cinéma avec un quiz.', inline: false },
-          { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour améliorer CinéBox.\n\n`/signaler`\nPréviens l’équipe en cas de problème.', inline: false },
-          { name: '🎬  EN COULISSES', value: '`/ping`\nVérifie que le bot est en ligne.\n\n`/setup`\nInstalle ou répare les salons et rôles *(administrateurs)*.\n\n`/programmer-seance`\nCrée un événement officiel dans un salon vocal *(Créer des événements)*.\n\n`/programmer-seance`\nCrée un événement officiel pour la prochaine séance *(Gérer les événements)*.', inline: false }
+          { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote communautaire pour choisir le prochain film.\n\n`/tirage-cinema`\nLaisse le hasard décider entre plusieurs films.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste tes connaissances avec un quiz interactif.', inline: false },
+          { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour faire évoluer le club.\n\n`/signaler`\nTransmets un bug ou un problème à l’équipe.', inline: false },
+          { name: '🎬  ORGANISATION DU CLUB', value: '`/programmer-seance`\nCrée un événement officiel dans un salon vocal *(permission Créer des événements)*.\n\n`/ping`\nVérifie que CinéBox répond.\n\n`/setup`\nInstalle ou répare les salons et les rôles *(administrateurs)*.', inline: false }
         ],
-        footer: { text: 'CinéBox • Installe-toi, la séance va commencer 🍿' },
+        footer: { text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' },
         timestamp: new Date().toISOString()
       }]
     }
@@ -438,7 +442,15 @@ function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
 }
 
 function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
-function embedReply(res, embed) { return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [embed] } }); }
+function embedReply(res, embed) {
+  const polished = Object.assign({
+    author: { name: 'CINÉBOX  /  LE CLUB DES CINÉPHILES' },
+    color: 0xd8b45a,
+    footer: { text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' },
+    timestamp: new Date().toISOString()
+  }, embed || {});
+  return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [polished] } });
+}
 
 async function setupGuild(guildId, onProgress) {
   const defs = [

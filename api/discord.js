@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (name === 'ping') return reply(res, '🏓 Pong ! CinéBox répond via Vercel.');
-  if (name === 'help') return reply(res, '**🎬 CinéBox — Commandes**\n/setup — Installer ou réparer les rôles et salons (administrateurs)\n/ping — Vérifier le bot\n/signaler — Transmettre un problème\n/suggestion — Proposer une idée');
+  if (name === 'help') return reply(res, '**🎬 CinéBox — Commandes**\n/setup — Installer ou réparer les rôles et salons (administrateurs)\n/ping — Vérifier le bot\n/sondage-cinema — Lancer un vote pour choisir un film\n/tirage-cinema — Tirer au sort le film de la séance\n/signaler — Transmettre un problème\n/suggestion — Proposer une idée');
 
   if (name === 'setup') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return reply(res, 'Cette commande est réservée aux administrateurs.');

@@ -87,11 +87,11 @@ async function setupGuild(guildId) {
   const staff = [
     { id: guildId, type: 0, deny: PERM.VIEW },
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) },
-    { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) + PERM.MANAGE_MESSAGES }
+    { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
   ];
   const vip = [
     { id: guildId, type: 0, deny: PERM.VIEW },
-    { id: roleIds['💎 VIP CinéBox'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY },
+    { id: roleIds['💎 VIP CinéBox'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['👑 Fondateur'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY },
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY + PERM.MANAGE_MESSAGES }
   ];

@@ -19,7 +19,7 @@ client.once('ready', () => {
   console.log('CINEBOX_GATEWAY_READY ' + client.user.tag);
   client.user.setPresence({
     status: 'online',
-    activities: [{ name: 'CinéBox 🍿', type: ActivityType.Streaming, url: SITE_URL }]
+    activities: [{ name: 'CinéBox 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]
   });
 });
 

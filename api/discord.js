@@ -76,7 +76,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (name === 'ping') {
-    const elapsed = interaction.created_timestamp ? Math.max(0, Date.now() - Number(interaction.created_timestamp)) : null;
+    const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;
     return embedReply(res, {
       title: '🎬 CINÉBOX • CONTRÔLE DE PROJECTION',
       description: '## 🟢 Tout est prêt !\nLe bot est opérationnel et répond aux commandes.',

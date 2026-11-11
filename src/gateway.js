@@ -1,4 +1,6 @@
 require('dotenv').config();
+const { createServer } = require('node:http');
+const interactionHandler = require('../api/discord');
 const { Client, GatewayIntentBits, EmbedBuilder, ActivityType } = require('discord.js');
 
 const { DISCORD_TOKEN } = process.env;
@@ -82,6 +84,31 @@ client.on('guildMemberRemove', async member => {
   } catch (error) {
     console.error('CINEBOX_GOODBYE_ERROR', error);
   }
+});
+
+const interactionServer = createServer((req, res) => {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  if (pathname !== '/interactions') {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Not Found');
+  }
+  const response = {
+    status(code) { res.statusCode = code; return this; },
+    setHeader(name, value) { res.setHeader(name, value); },
+    json(payload) {
+      if (!res.headersSent) res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(payload));
+    },
+    send(payload) { res.end(payload); }
+  };
+  interactionHandler(req, response).catch(error => {
+    console.error('CINEBOX_INTERACTION_ERROR', error && error.stack || error);
+    if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+    if (!res.writableEnded) res.end('Internal Server Error');
+  });
+});
+interactionServer.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => {
+  console.log('CINEBOX_INTERACTIONS_HTTP_READY port=' + (process.env.PORT || 3000));
 });
 
 client.login(DISCORD_TOKEN).catch(error => {

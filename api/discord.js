@@ -86,27 +86,13 @@ module.exports = async function handler(req, res) {
     const opts = interaction.data.options || [];
     const genre = opts.find(option => option.name === 'genre')?.value || 'tous';
     const mood = opts.find(option => option.name === 'ambiance')?.value || 'surprise';
-    const candidates = MOVIE_LIBRARY.filter(movie =>
-      (genre === 'tous' || movie.genres.includes(genre)) &&
-      (mood === 'surprise' || movie.moods.includes(mood))
-    );
-    const pool = candidates.length ? candidates : MOVIE_LIBRARY.filter(movie => genre === 'tous' || movie.genres.includes(genre));
-    const movie = pool[Math.floor(Math.random() * pool.length)];
-    const moodNames = { detente: 'Détente', frissons: 'Frissons', evasion: 'Évasion', emotion: 'Émotion', reflexion: 'Réflexion', surprise: 'Surprise' };
-    const genreNames = { tous: 'Tous les genres', aventure: 'Aventure', animation: 'Animation', comedie: 'Comédie', drame: 'Drame', 'science-fiction': 'Science-fiction', thriller: 'Thriller' };
-    return embedReply(res, {
-      author: { name: 'CINÉBOX  /  SÉLECTION DU CLUB' },
-      title: '🎞️ ' + movie.title,
-      description: movie.synopsis,
-      color: 0xd8b45a,
-      fields: [
-        { name: 'POURQUOI CE FILM ?', value: movie.pitch, inline: false },
-        { name: 'AMBIANCE', value: moodNames[mood] || 'Surprise', inline: true },
-        { name: 'GENRE', value: genreNames[genre] || 'Tous les genres', inline: true },
-        { name: 'FICHE', value: movie.year + ' • ' + movie.duration + ' min', inline: true }
-      ],
-      footer: { text: 'CINÉBOX  •  TA PROCHAINE PÉPITE  •  🍿' },
-      timestamp: new Date().toISOString()
+    return res.status(200).json({
+      type: 4,
+      data: {
+        flags: EPHEMERAL,
+        embeds: [buildRecommendationEmbed(genre, mood)],
+        components: buildRecommendationComponents(genre, mood)
+      }
     });
   }
 
@@ -438,10 +424,44 @@ const CINEMA_QUIZ = [
   { question: 'Dans Retour vers le futur, quel scientifique invente la machine à voyager dans le temps ?', answers: ['Doc Brown','Dr. Grant','Dr. Lecter','Dr. Strange'], correct: 0, explanation: 'Emmett “Doc” Brown construit la DeLorean qui permet de voyager dans le temps.' }
 ];
 
+function buildRecommendationEmbed(genre, mood) {
+  const candidates = MOVIE_LIBRARY.filter(movie =>
+    (genre === 'tous' || movie.genres.includes(genre)) &&
+    (mood === 'surprise' || movie.moods.includes(mood))
+  );
+  const pool = candidates.length ? candidates : MOVIE_LIBRARY.filter(movie => genre === 'tous' || movie.genres.includes(genre));
+  const movie = pool[Math.floor(Math.random() * pool.length)];
+  const moodNames = { detente: 'Détente', frissons: 'Frissons', evasion: 'Évasion', emotion: 'Émotion', reflexion: 'Réflexion', surprise: 'Surprise' };
+  const genreNames = { tous: 'Tous les genres', aventure: 'Aventure', animation: 'Animation', comedie: 'Comédie', drame: 'Drame', 'science-fiction': 'Science-fiction', thriller: 'Thriller' };
+  return {
+    author: { name: 'CINÉBOX  /  SÉLECTION DU CLUB' },
+    title: '🎬  ' + movie.title,
+    description: movie.synopsis + '\n\n**Pourquoi le regarder ?**\n' + movie.pitch,
+    color: 0xd8b45a,
+    fields: [
+      { name: '📅  ANNÉE', value: String(movie.year), inline: true },
+      { name: '⏱️  DURÉE', value: movie.duration + ' min', inline: true },
+      { name: '🎭  GENRE', value: genreNames[genre] || 'Tous les genres', inline: true },
+      { name: '✨  AMBIANCE', value: moodNames[mood] || 'Surprise', inline: true },
+      { name: '🎟️  LE CONSEIL CINÉBOX', value: 'Installe-toi, prépare le pop-corn et profite de la séance.', inline: false }
+    ],
+    footer: { text: 'CINÉBOX  •  TA PROCHAINE PÉPITE  •  🍿  |  Une autre suggestion ?' },
+    timestamp: new Date().toISOString()
+  };
+}
+
+function buildRecommendationComponents(genre, mood) {
+  return [{ type: 1, components: [{
+    type: 2, style: 2, custom_id: 'cine_reco_again_' + genre + '_' + mood, label: '🎲  Une autre pépite'
+  }] }];
+}
+
 function handleCinemaComponent(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
   if (customId === 'cinebox_reset_cancel') return res.status(200).json({ type: 4, data: { content: 'Remise à zéro annulée. Aucun salon ni rôle n’a été supprimé.', flags: EPHEMERAL } });
   if (customId === 'cinebox_reset_confirm') return handleCineboxReset(interaction, res);
+  const recoMatch = /^cine_reco_again_(tous|aventure|animation|comedie|drame|science-fiction|thriller)_(detente|frissons|evasion|emotion|reflexion|surprise)$/.exec(customId);
+  if (recoMatch) return res.status(200).json({ type: 7, data: { embeds: [buildRecommendationEmbed(recoMatch[1], recoMatch[2])], components: buildRecommendationComponents(recoMatch[1], recoMatch[2]) } });
   if (customId.startsWith('cine_quiz_')) return handleCinemaQuiz(interaction, res);
   return handleCinemaVote(interaction, res);
 }

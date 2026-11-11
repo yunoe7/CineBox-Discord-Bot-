@@ -17,6 +17,7 @@
     "discord.js": "^14.19.3",
     "dotenv": "^16.4.7",
     "discord-interactions": "^4.3.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "@vercel/functions": "^2.2.12"
   }
 }

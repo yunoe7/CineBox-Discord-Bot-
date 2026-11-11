@@ -12,6 +12,17 @@ const commands = [
   new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes CinéBox.'),
   new SlashCommandBuilder().setName('signaler').setDescription('Signale un bug ou un problème à l’équipe.')
     .addStringOption(o => o.setName('message').setDescription('Décris le problème').setRequired(true).setMaxLength(1500)),
+  new SlashCommandBuilder().setName('sondage-cinema').setDescription('Lance un vote pour choisir le prochain film à regarder.')
+    .addStringOption(o => o.setName('titre').setDescription('Question du sondage, par exemple : Film de vendredi ?').setRequired(true).setMaxLength(240))
+    .addStringOption(o => o.setName('film1').setDescription('Premier film').setRequired(true).setMaxLength(100))
+    .addStringOption(o => o.setName('film2').setDescription('Deuxième film').setRequired(true).setMaxLength(100))
+    .addStringOption(o => o.setName('film3').setDescription('Troisième film (facultatif)').setRequired(false).setMaxLength(100))
+    .addStringOption(o => o.setName('film4').setDescription('Quatrième film (facultatif)').setRequired(false).setMaxLength(100)),
+  new SlashCommandBuilder().setName('tirage-cinema').setDescription('Choisit au hasard le film de la prochaine séance.')
+    .addStringOption(o => o.setName('film1').setDescription('Premier film').setRequired(true).setMaxLength(100))
+    .addStringOption(o => o.setName('film2').setDescription('Deuxième film').setRequired(true).setMaxLength(100))
+    .addStringOption(o => o.setName('film3').setDescription('Troisième film (facultatif)').setRequired(false).setMaxLength(100))
+    .addStringOption(o => o.setName('film4').setDescription('Quatrième film (facultatif)').setRequired(false).setMaxLength(100)),
   new SlashCommandBuilder().setName('suggestion').setDescription('Propose une amélioration pour CinéBox.')
     .addStringOption(o => o.setName('idee').setDescription('Décris ton idée').setRequired(true).setMaxLength(1500)),
 ].map(command => command.toJSON());

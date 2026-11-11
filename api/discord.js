@@ -189,7 +189,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (name === 'reset-cinebox') {\n    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });\n    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\\n\\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });\n  }\n\n  if (name === 'ping') {
+  if (name === 'reset-cinebox') {\n    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });\n    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });\n  }\n\n  if (name === 'ping') {
     const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;
     return embedReply(res, {
       author: { name: 'CINÉBOX  /  SYSTÈME DE PROJECTION' },
@@ -375,6 +375,8 @@ const CINEMA_QUIZ = [
 
 function handleCinemaComponent(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
+  if (customId === 'cinebox_reset_cancel') return res.status(200).json({ type: 4, data: { content: 'Remise à zéro annulée. Aucun salon ni rôle n’a été supprimé.', flags: EPHEMERAL } });
+  if (customId === 'cinebox_reset_confirm') return handleCineboxReset(interaction, res);
   if (customId.startsWith('cine_quiz_')) return handleCinemaQuiz(interaction, res);
   return handleCinemaVote(interaction, res);
 }
@@ -427,10 +429,10 @@ async function handleCineboxReset(interaction, res) {
         console.log('CINEBOX_RESET_ROLE_DELETED', role.name);
       }
       console.log('CINEBOX_RESET_SUCCESS', { deletedChannels, deletedCategories, deletedRoles });
-      await editOriginal(interaction, { content: '', embeds: [{ title: '🧹 Structure CinéBox supprimée', description: 'La remise à zéro est terminée.\\n\\n• ' + deletedChannels + ' salons supprimés\\n• ' + deletedCategories + ' catégories supprimées\\n• ' + deletedRoles + ' rôles supprimés\\n\\nLes autres éléments du serveur ont été conservés.', color: 0x57f287, footer: { text: 'CINÉBOX • REMISE À ZÉRO TERMINÉE' }, timestamp: new Date().toISOString() }] });
+      await editOriginal(interaction, { content: '', embeds: [{ title: '🧹 Structure CinéBox supprimée', description: 'La remise à zéro est terminée.\n\n• ' + deletedChannels + ' salons supprimés\n• ' + deletedCategories + ' catégories supprimées\n• ' + deletedRoles + ' rôles supprimés\n\nLes autres éléments du serveur ont été conservés.', color: 0x57f287, footer: { text: 'CINÉBOX • REMISE À ZÉRO TERMINÉE' }, timestamp: new Date().toISOString() }] });
     } catch (error) {
       console.error('CINEBOX_RESET_FAILED', error && error.stack || error);
-      await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Remise à zéro incomplète', description: 'Une erreur est survenue. Les éléments déjà supprimés le restent.\\n\\n' + String(error.message || error).slice(0, 700), color: 0xed4245, footer: { text: 'CINÉBOX • ASSISTANCE ADMINISTRATEUR' } }] });
+      await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Remise à zéro incomplète', description: 'Une erreur est survenue. Les éléments déjà supprimés le restent.\n\n' + String(error.message || error).slice(0, 700), color: 0xed4245, footer: { text: 'CINÉBOX • ASSISTANCE ADMINISTRATEUR' } }] });
     }
   })();
   waitUntil(task);

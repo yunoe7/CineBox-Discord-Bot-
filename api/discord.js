@@ -192,7 +192,8 @@ function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
   }
 }
 
-function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }\nfunction embedReply(res, embed) { return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [embed] } }); }
+function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
+function embedReply(res, embed) { return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [embed] } }); }
 
 async function setupGuild(guildId, onProgress) {
   const defs = [

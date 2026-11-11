@@ -49,10 +49,30 @@ module.exports = async function handler(req, res) {
 
   if (name === 'tirage-cinema') {
     const opts = interaction.data.options || [];
-    const films = ['film1','film2','film3','film4'].map(key => opts.find(option => option.name === key)?.value).filter(Boolean);
+    const films = ['film1','film2','film3','film4']
+      .map(key => opts.find(option => option.name === key)?.value)
+      .filter(Boolean)
+      .map(value => String(value).trim())
+      .filter(Boolean);
     if (films.length < 2) return reply(res, 'Ajoute au moins deux films pour effectuer le tirage.');
     const winner = films[Math.floor(Math.random() * films.length)];
-    return reply(res, '🎲 **Le choix du CinéBox est tombé !**\\n\\n🍿 Ce soir, on regarde : **' + String(winner).slice(0, 200) + '**\\n\\nBonne séance à tous !');
+    const others = films.filter(film => film !== winner);
+    const description = 'Le hasard a parlé… Préparez le pop-corn et installez-vous ! 🍿\\n\\n' +
+      '**🎞️ Film sélectionné**\\n# ' + winner.slice(0, 200) +
+      (others.length ? '\\n\\n**Autres films en compétition**\\n' + others.map(film => '• ' + film.slice(0, 100)).join('\\n') : '');
+    return res.status(200).json({
+      type: 4,
+      data: {
+        flags: EPHEMERAL,
+        embeds: [{
+          title: '🎬  LA SÉANCE CINÉBOX EST CHOISIE !',
+          description,
+          color: 0xd8b45a,
+          footer: { text: 'CinéBox • Le Club des Cinéphiles' },
+          timestamp: new Date().toISOString()
+        }]
+      }
+    });
   }
 
   if (name === 'ping') return reply(res, '🏓 Pong ! CinéBox répond via Vercel.');

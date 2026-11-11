@@ -546,14 +546,17 @@ async function setupGuild(guildId, onProgress) {
     { name: '💎 VIP CinéBox', color: 0xd8b4fe, hoist: true },
     { name: '🛡️ Modérateur', color: 0x60a5fa, hoist: true },
     { name: '🎬 Cinéphile', color: 0xe5c76b, hoist: false },
-    { name: '🍿 Nouveau membre', color: 0x9ca3af, hoist: false }
+    { name: '🍿 Nouveau membre', color: 0x9ca3af, hoist: false },
+    { name: '🤝 Ami de CinéBox', color: 0x78c6a3, hoist: false },
+    { name: '🌟 Ami fidèle', color: 0xf4a7c4, hoist: false },
+    { name: '🎟️ Invité du ciné-club', color: 0x8bb8e8, hoist: false }
   ];
   const groups = [
-    { name: '01 — LE GRAND ÉCRAN', channels: [['👋-bienvenue','Bienvenue au club ! Présente-toi et découvre la communauté.'],['📢-actualités-cinébox','Les annonces et actualités officielles de CinéBox.'],['📜-règlement','Les règles pour que tout le monde profite du serveur.'],['✨-découvrir-cinébox','Découvre CinéBox et les liens utiles.']] },
-    { name: '02 — LE FOYER DES CINÉPHILES', channels: [['💬-le-salon','Le salon général de la communauté.'],['🎞️-discussions-films','Parlons cinéma et dernières sorties.'],['📺-discussions-séries','Vos séries du moment et vos théories.'],['🍿-soirée-cinéma','Organisons les prochaines soirées cinéma.'],['❤️-coups-de-cœur','Vos pépites et coups de cœur.'],['🔎-que-regarder','Besoin d’une recommandation ? Demande ici.']] },
-    { name: '03 — LE CLUB VIP', channels: [['🌟-espace-vip','Un espace réservé aux membres VIP et à l’équipe.'],['🏆-membres-à-la-une','Les membres et contributions à l’honneur.'],['🎁-surprises','Surprises et événements spéciaux.']] },
-    { name: '04 — ASSISTANCE & AMÉLIORATIONS', channels: [['🆘-besoin-daide','Une question ? La communauté et l’équipe sont là.'],['🐛-signaler-un-bug','Utilise /signaler pour transmettre un problème.'],['💡-boîte-à-idées','Utilise /suggestion pour proposer une idée.'],['🚀-nouveautés-à-venir','Les nouveautés et améliorations à venir.']] },
-    { name: '05 — LES COULISSES (PRIVÉ)', private: true, channels: [['👑-direction','Espace privé de direction.'],['🛡️-modération','Coordination de la modération.'],['🧪-tests-cinébox','Tests internes du serveur et du site.'],['📋-journal-équipe','Suivi des actions de l’équipe.']] }
+    { name: '01 • LE GRAND ÉCRAN', channels: [['👋-bienvenue','Bienvenue au club ! Présente-toi et découvre la communauté.'],['📢-actualités-cinébox','Les annonces et actualités officielles de CinéBox.'],['📜-règlement','Les règles pour que tout le monde profite du serveur.'],['✨-découvrir-cinébox','Découvre CinéBox et les liens utiles.']] },
+    { name: '02 • LE FOYER DES CINÉPHILES', channels: [['💬-le-salon','Le salon général de la communauté.'],['🎞️-discussions-films','Parlons cinéma et dernières sorties.'],['📺-discussions-séries','Vos séries du moment et vos théories.'],['🍿-soirée-cinéma','Organisons les prochaines soirées cinéma.'],['❤️-coups-de-cœur','Vos pépites et coups de cœur.'],['🔎-que-regarder','Besoin d’une recommandation ? Demande ici.']] },
+    { name: '03 • LE CLUB VIP', channels: [['🌟-espace-vip','Un espace réservé aux membres VIP et à l’équipe.'],['🏆-membres-à-la-une','Les membres et contributions à l’honneur.'],['🎁-surprises','Surprises et événements spéciaux.']] },
+    { name: '04 • ASSISTANCE & AMÉLIORATIONS', channels: [['🆘-besoin-daide','Une question ? La communauté et l’équipe sont là.'],['🐛-signaler-un-bug','Utilise /signaler pour transmettre un problème.'],['💡-boîte-à-idées','Utilise /suggestion pour proposer une idée.'],['🚀-nouveautés-à-venir','Les nouveautés et améliorations à venir.']] },
+    { name: '05 • LES COULISSES (PRIVÉ)', private: true, channels: [['👑-direction','Espace privé de direction.'],['🛡️-modération','Coordination de la modération.'],['🧪-tests-cinébox','Tests internes du serveur et du site.'],['📋-journal-équipe','Suivi des actions de l’équipe.']] }
   ];
   const voiceNames = ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊・After Movie'];
   const total = defs.length + groups.reduce((n, g) => n + 1 + g.channels.length, 0) + 1 + voiceNames.length + 2;
@@ -631,7 +634,7 @@ async function setupGuild(guildId, onProgress) {
       textMap[channelName] = await getOrCreate(channelName, 0, category.id, extra);
     }
   }
-  const voiceCategory = await getOrCreate('06 — SALONS VOCAUX', 4, null, {});
+  const voiceCategory = await getOrCreate('06 • SALONS VOCAUX', 4, null, {});
   for (const name of voiceNames) await getOrCreate(name, 2, voiceCategory.id, {});
   const rules = textMap['📜-règlement'];
   if (rules && !(rules.topic || '').includes('[CINEBOX_RULES]')) {

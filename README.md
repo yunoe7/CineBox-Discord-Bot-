@@ -33,7 +33,7 @@ Ne jamais publier de token dans GitHub, dans un fichier .env commité, ni dans u
 - `/ping` : vérifie que l’endpoint répond.
 - `/help` : affiche l’aide.
 - `/signaler` : transmet un signalement au salon configuré.
-- `/suggestion` : transmet une suggestion au salon configuré.
+- `/suggestion` : transmet une suggestion au salon configuré.\n- `/sondage-cinema` : publie un sondage interactif avec 2 à 4 films et des boutons de vote.\n- `/tirage-cinema` : tire au sort un film parmi 2 à 4 propositions.
 - `/setup` : présent dans la liste des commandes, mais sa migration complète vers l’API HTTP reste à faire.
 
 ## Important

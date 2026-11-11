@@ -149,31 +149,36 @@ module.exports = async function handler(req, res) {
     }
     const end = new Date(start.getTime() + Math.min(360, Math.max(60, Number(duration))) * 60000);
     const unixStart = Math.floor(start.getTime() / 1000);
-    try {
-      const event = await discord('/guilds/' + interaction.guild_id + '/scheduled-events', {
-        method: 'POST',
-        body: {
-          name: '🍿 CinéBox — ' + film.slice(0, 80),
-          description: (details || 'Une séance cinéma organisée par la communauté CinéBox.') + '\n\nFilm : ' + film,
-          scheduled_start_time: start.toISOString(),
-          scheduled_end_time: end.toISOString(),
-          privacy_level: 2,
-          entity_type: 2,
-          channel_id: channelId
-        }
-      });
-      return embedReply(res, {
-        author: { name: 'CINÉBOX • PROGRAMMATION' },
-        title: '🍿 La séance est officiellement programmée !',
-        description: '**' + film + '**\n\n📅 <t:' + unixStart + ':F>\n⏳ <t:' + unixStart + ':R>\n🔊 <#' + channelId + '>\n\n[Voir l’événement Discord](https://discord.com/events/' + interaction.guild_id + '/' + event.id + ')',
-        color: 0x57f287,
-        footer: { text: 'CinéBox • Bloque la date et prépare le pop-corn !' },
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('CINEMA_EVENT_CREATE_FAILED', error && error.stack || error);
-      return embedReply(res, { title: '⚠️ Événement non créé', description: 'Discord a refusé la création. Vérifie que le bot possède la permission Gérer les événements et peut accéder au salon vocal.\n\n' + String(error.message || error).slice(0, 500), color: 0xed4245 });
-    }
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    const task = (async () => {
+      try {
+        const event = await discord('/guilds/' + interaction.guild_id + '/scheduled-events', {
+          method: 'POST',
+          body: {
+            name: '🍿 CinéBox — ' + film.slice(0, 80),
+            description: (details || 'Une séance cinéma organisée par la communauté CinéBox.') + '\n\nFilm : ' + film,
+            scheduled_start_time: start.toISOString(),
+            scheduled_end_time: end.toISOString(),
+            privacy_level: 2,
+            entity_type: 2,
+            channel_id: channelId
+          }
+        });
+        await editOriginal(interaction, { content: '', embeds: [{
+          author: { name: 'CINÉBOX • PROGRAMMATION' },
+          title: '🍿 La séance est officiellement programmée !',
+          description: '**' + film + '**\n\n📅 <t:' + unixStart + ':F>\n⏳ <t:' + unixStart + ':R>\n🔊 <#' + channelId + '>\n\n[Voir l’événement Discord](https://discord.com/events/' + interaction.guild_id + '/' + event.id + ')',
+          color: 0x57f287,
+          footer: { text: 'CinéBox • Bloque la date et prépare le pop-corn !' },
+          timestamp: new Date().toISOString()
+        }] });
+      } catch (error) {
+        console.error('CINEMA_EVENT_CREATE_FAILED', error && error.stack || error);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Événement non créé', description: 'Discord a refusé la création. Vérifie que le bot possède la permission Gérer les événements et peut accéder au salon vocal.\n\n' + String(error.message || error).slice(0, 500), color: 0xed4245 }] });
+      }
+    })();
+    waitUntil(task);
+    return;
   }
 
   if (name === 'ping') {

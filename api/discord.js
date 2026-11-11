@@ -38,9 +38,16 @@ module.exports = async function handler(req, res) {
     const report = name === 'signaler';
     const optionName = report ? 'message' : 'idee';
     const value = interaction.data.options && interaction.data.options.find(x => x.name === optionName)?.value;
-    const channelId = report ? process.env.REPORT_CHANNEL_ID : process.env.SUGGESTION_CHANNEL_ID;
-    if (!value || !channelId || !process.env.DISCORD_TOKEN) return reply(res, 'Configuration du salon cible manquante. Préviens un administrateur.');
+    if (!value || !process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète. Préviens un administrateur.');
     try {
+      const configuredId = report ? process.env.REPORT_CHANNEL_ID : process.env.SUGGESTION_CHANNEL_ID;
+      let channelId = configuredId;
+      if (!channelId) {
+        const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
+        const targetName = report ? '🐛-signaler-un-bug' : '💡-boîte-à-idées';
+        channelId = channels.find(c => c.name === targetName && c.type === 0)?.id;
+      }
+      if (!channelId) return reply(res, 'Salon introuvable. Un administrateur doit lancer /setup.');
       await discord('/channels/' + channelId + '/messages', { method: 'POST', body: {
         embeds: [{
           title: report ? '🐛 Nouveau signalement' : '💡 Nouvelle suggestion',
@@ -92,8 +99,8 @@ async function setupGuild(guildId) {
   const vip = [
     { id: guildId, type: 0, deny: PERM.VIEW },
     { id: roleIds['💎 VIP CinéBox'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
-    { id: roleIds['👑 Fondateur'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY },
-    { id: roleIds['🛡️ Modérateur'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY + PERM.MANAGE_MESSAGES }
+    { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
+    { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
   ];
 
   const groups = [

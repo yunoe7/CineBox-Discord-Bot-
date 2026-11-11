@@ -441,7 +441,7 @@ async function handleCineboxReset(interaction, res) {
   })();
   waitUntil(task);
 }
-\nfunction handleCinemaQuiz(interaction, res) {
+function handleCinemaQuiz(interaction, res) {
   const match = /^cine_quiz_(\d+)_(\d+)_(\d+)$/.exec(interaction.data.custom_id || '');
   if (!match) return res.status(200).json({ type: 4, data: { content: 'Cette question n’est plus disponible.', flags: EPHEMERAL } });
   const question = CINEMA_QUIZ[Number(match[1])];

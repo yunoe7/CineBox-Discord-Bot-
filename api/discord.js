@@ -189,7 +189,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (name === 'ping') {
+  if (name === 'reset-cinebox') {\n    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });\n    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\\n\\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });\n  }\n\n  if (name === 'ping') {
     const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;
     return embedReply(res, {
       author: { name: 'CINÉBOX  /  SYSTÈME DE PROJECTION' },
@@ -379,7 +379,63 @@ function handleCinemaComponent(interaction, res) {
   return handleCinemaVote(interaction, res);
 }
 
-function handleCinemaQuiz(interaction, res) {
+
+async function handleCineboxReset(interaction, res) {
+  if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
+    return res.status(200).json({ type: 4, data: { content: 'Seuls les administrateurs peuvent confirmer cette action.', flags: EPHEMERAL } });
+  }
+  res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+  const task = (async () => {
+    const guildId = interaction.guild_id;
+    const managedCategories = [
+      '01 • LE GRAND ÉCRAN', '02 • LE FOYER DES CINÉPHILES',
+      '03 • LE CLUB VIP', '04 • ASSISTANCE & AMÉLIORATIONS',
+      '05 • LES COULISSES (PRIVÉ)', '06 • SALONS VOCAUX'
+    ];
+    const managedChannels = [
+      '👋-bienvenue','📢-actualités-cinébox','📜-règlement','✨-découvrir-cinébox',
+      '💬-le-salon','🎞️-discussions-films','📺-discussions-séries','🍿-soirée-cinéma',
+      '❤️-coups-de-cœur','🔎-que-regarder','🌟-espace-vip','🏆-membres-à-la-une',
+      '🎁-surprises','🆘-besoin-daide','🐛-signaler-un-bug','💡-boîte-à-idées',
+      '🚀-nouveautés-à-venir','👑-direction','🛡️-modération','🧪-tests-cinébox',
+      '📋-journal-équipe','🔊・Le Grand Salon','🔊・Séance privée','🔊・After Movie'
+    ];
+    const managedRoles = [
+      '👑 Fondateur','💎 VIP CinéBox','🛡️ Modérateur','🎬 Cinéphile',
+      '🍿 Nouveau membre','🤝 Ami de CinéBox','🌟 Ami fidèle','🎟️ Invité du ciné-club'
+    ];
+    try {
+      console.log('CINEBOX_RESET_START', guildId);
+      const channels = await discord('/guilds/' + guildId + '/channels');
+      let deletedChannels = 0;
+      for (const channel of channels.filter(item => managedChannels.includes(item.name))) {
+        await discord('/channels/' + channel.id, { method: 'DELETE' });
+        deletedChannels++;
+        console.log('CINEBOX_RESET_CHANNEL_DELETED', channel.name);
+      }
+      let deletedCategories = 0;
+      for (const category of channels.filter(item => item.type === 4 && managedCategories.includes(item.name))) {
+        await discord('/channels/' + category.id, { method: 'DELETE' });
+        deletedCategories++;
+        console.log('CINEBOX_RESET_CATEGORY_DELETED', category.name);
+      }
+      const roles = await discord('/guilds/' + guildId + '/roles');
+      let deletedRoles = 0;
+      for (const role of roles.filter(item => managedRoles.includes(item.name))) {
+        await discord('/guilds/' + guildId + '/roles/' + role.id, { method: 'DELETE' });
+        deletedRoles++;
+        console.log('CINEBOX_RESET_ROLE_DELETED', role.name);
+      }
+      console.log('CINEBOX_RESET_SUCCESS', { deletedChannels, deletedCategories, deletedRoles });
+      await editOriginal(interaction, { content: '', embeds: [{ title: '🧹 Structure CinéBox supprimée', description: 'La remise à zéro est terminée.\\n\\n• ' + deletedChannels + ' salons supprimés\\n• ' + deletedCategories + ' catégories supprimées\\n• ' + deletedRoles + ' rôles supprimés\\n\\nLes autres éléments du serveur ont été conservés.', color: 0x57f287, footer: { text: 'CINÉBOX • REMISE À ZÉRO TERMINÉE' }, timestamp: new Date().toISOString() }] });
+    } catch (error) {
+      console.error('CINEBOX_RESET_FAILED', error && error.stack || error);
+      await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Remise à zéro incomplète', description: 'Une erreur est survenue. Les éléments déjà supprimés le restent.\\n\\n' + String(error.message || error).slice(0, 700), color: 0xed4245, footer: { text: 'CINÉBOX • ASSISTANCE ADMINISTRATEUR' } }] });
+    }
+  })();
+  waitUntil(task);
+}
+\nfunction handleCinemaQuiz(interaction, res) {
   const match = /^cine_quiz_(\d+)_(\d+)_(\d+)$/.exec(interaction.data.custom_id || '');
   if (!match) return res.status(200).json({ type: 4, data: { content: 'Cette question n’est plus disponible.', flags: EPHEMERAL } });
   const question = CINEMA_QUIZ[Number(match[1])];

@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
   if (name === 'help') return reply(res, '**🎬 CinéBox — Commandes**\n/setup — Installer ou réparer les rôles et salons (administrateurs)\n/ping — Vérifier le bot\n/signaler — Transmettre un problème\n/suggestion — Proposer une idée');
 
   if (name === 'setup') {
-    if (!hasPermission(interaction.memberPermissions, PERM.ADMIN)) return reply(res, 'Cette commande est réservée aux administrateurs.');
+    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return reply(res, 'Cette commande est réservée aux administrateurs.');
     if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète.');
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     try {

@@ -19,12 +19,12 @@ module.exports = async function handler(req, res) {
 
   const name = interaction.data && interaction.data.name;
   if (name === 'sondage-cinema') {
-    if (!process.env.DISCORD_TOKEN || !interaction.channel_id) return reply(res, 'Configuration incomplète.');
+    if (!process.env.DISCORD_TOKEN || !interaction.channel_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Le sondage ne peut pas être publié dans ce contexte.', color: 0xed4245 });
     const opts = interaction.data.options || [];
     const get = key => opts.find(option => option.name === key)?.value;
     const title = get('titre');
     const films = ['film1','film2','film3','film4'].map(get).filter(Boolean).map(x => String(x).trim()).filter(Boolean);
-    if (!title || films.length < 2) return reply(res, 'Il faut un titre et au moins deux films.');
+    if (!title || films.length < 2) return embedReply(res, { title: '📝 Sondage incomplet', description: 'Ajoute un titre et au moins **deux films** pour lancer le vote.', color: 0xed4245 });
     try {
       const embed = {
         title: '🍿 ' + String(title).slice(0, 240),
@@ -54,7 +54,7 @@ module.exports = async function handler(req, res) {
       .filter(Boolean)
       .map(value => String(value).trim())
       .filter(Boolean);
-    if (films.length < 2) return reply(res, 'Ajoute au moins deux films pour effectuer le tirage.');
+    if (films.length < 2) return embedReply(res, { title: '🎲 Tirage impossible', description: 'Ajoute au moins **deux films** pour lancer le tirage au sort.', color: 0xed4245 });
     const winner = films[Math.floor(Math.random() * films.length)];
     const others = films.filter(film => film !== winner);
     const description = 'Le hasard a parlé… Préparez le pop-corn et installez-vous ! 🍿\n\n' +
@@ -79,8 +79,8 @@ module.exports = async function handler(req, res) {
   if (name === 'help') return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '🎬 Le guide du CinéBox', description: 'Toutes les commandes pour faire vivre le club des cinéphiles.', color: 0xd8b45a, fields: [{ name: '🍿 EXPÉRIENCE CINÉMA', value: '`/sondage-cinema` — Faites voter la communauté pour son prochain film.\n`/tirage-cinema` — Laissez le hasard choisir la prochaine séance.' }, { name: '🧰 VIE DU SERVEUR', value: '`/signaler` — Faites remonter un problème à l’équipe.\n`/suggestion` — Proposez une amélioration.' }, { name: '⚙️ OUTILS', value: '`/ping` — Vérifiez que le bot est disponible.\n`/setup` — Installez ou réparez le serveur (administrateurs).' }], footer: { text: 'CinéBox • Le Club des Cinéphiles' }, timestamp: new Date().toISOString() }] } });
 
   if (name === 'setup') {
-    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return reply(res, 'Cette commande est réservée aux administrateurs.');
-    if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète.');
+    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La configuration du serveur est réservée aux administrateurs.', color: 0xed4245, footer: { text: 'CinéBox • Permissions' } });
+    if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'CinéBox ne dispose pas de tous les paramètres nécessaires. Préviens un administrateur.', color: 0xed4245 });
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     console.log('SETUP_START', interaction.guild_id);
     const task = (async () => {
@@ -121,7 +121,7 @@ module.exports = async function handler(req, res) {
     const report = name === 'signaler';
     const optionName = report ? 'message' : 'idee';
     const value = interaction.data.options && interaction.data.options.find(x => x.name === optionName)?.value;
-    if (!value || !process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète. Préviens un administrateur.');
+    if (!value || !process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Envoi impossible', description: 'Il manque des informations pour transmettre ta demande. Préviens un administrateur.', color: 0xed4245 });
     try {
       const configuredId = report ? process.env.REPORT_CHANNEL_ID : process.env.SUGGESTION_CHANNEL_ID;
       let channelId = configuredId;
@@ -130,7 +130,7 @@ module.exports = async function handler(req, res) {
         const targetName = report ? '🐛-signaler-un-bug' : '💡-boîte-à-idées';
         channelId = channels.find(c => c.name === targetName && c.type === 0)?.id;
       }
-      if (!channelId) return reply(res, 'Salon introuvable. Un administrateur doit lancer /setup.');
+      if (!channelId) return embedReply(res, { title: '🔎 Salon introuvable', description: 'Le salon de destination n’a pas été trouvé. Demande à un administrateur de vérifier la configuration avec `/setup`.', color: 0xed4245 });
       await discord('/channels/' + channelId + '/messages', { method: 'POST', body: {
         embeds: [{
           title: report ? '🐛 Nouveau signalement' : '💡 Nouvelle suggestion',
@@ -146,7 +146,7 @@ module.exports = async function handler(req, res) {
       return embedReply(res, { title: report ? '🐛 Signalement transmis' : '💡 Suggestion envoyée', description: report ? 'Merci de nous avoir prévenus. L’équipe CinéBox pourra examiner ton signalement.' : 'Merci de contribuer à faire évoluer CinéBox. Ton idée a bien été transmise à l’équipe.', color: 0x57f287, footer: { text: 'CinéBox • Merci pour ta participation' }, timestamp: new Date().toISOString() });
     } catch (error) {
       console.error('Message delivery failed:', error);
-      return reply(res, 'Impossible de transmettre le message. Réessaie plus tard.');
+      return embedReply(res, { title: '⚠️ Transmission échouée', description: 'Ta demande n’a pas pu être transmise. Réessaie dans quelques instants ou contacte un membre de l’équipe.', color: 0xed4245 });
     }
   }
   return reply(res, 'Commande inconnue.');

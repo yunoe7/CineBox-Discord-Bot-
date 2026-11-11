@@ -656,7 +656,7 @@ async function setupGuild(guildId, onProgress) {
 async function discord(path, options) {
   options = options || {};
   const method = options.method || 'GET';
-  const maxAttempts = method === 'GET' || method === 'PATCH' ? 2 : 1;
+  const maxAttempts = method === 'GET' || method === 'PATCH' ? 4 : 2;
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const started = Date.now();
@@ -666,28 +666,40 @@ async function discord(path, options) {
         method,
         headers: Object.assign({ Authorization: 'Bot ' + process.env.DISCORD_TOKEN }, options.body ? { 'Content-Type': 'application/json' } : {}),
         body: options.body ? JSON.stringify(options.body) : undefined,
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(12000)
       });
       console.log('DISCORD_API_RESPONSE', method, path, response.status, Date.now() - started + 'ms');
       if (response.status === 429) {
-        const data = await response.json();
-        await new Promise(resolve => setTimeout(resolve, Math.ceil((data.retry_after || 1) * 1000)));
-        attempt--;
+        const raw = await response.text();
+        let retryAfter = Number(response.headers.get('retry-after') || 0);
+        try {
+          const data = JSON.parse(raw);
+          retryAfter = Number(data.retry_after || retryAfter || 1);
+        } catch {}
+        // Cloudflare can return an HTML 1015 page instead of Discord's JSON rate-limit body.
+        if (!retryAfter || /error 1015|you are being rate limited/i.test(raw)) retryAfter = Math.min(30, 2 ** attempt * 2);
+        if (attempt === maxAttempts) throw new Error('Discord/Cloudflare limite temporairement les requêtes (HTTP 429). Réessaie dans une à deux minutes.');
+        const delay = Math.min(30000, Math.max(1500, retryAfter * 1000 + 500));
+        console.warn('DISCORD_RATE_LIMIT_WAIT', method, path, delay + 'ms');
+        await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      if (!response.ok) throw new Error('Discord API ' + response.status + ': ' + await response.text());
-      if (response.status === 204) return null;
-      return response.json();
+      const raw = response.status === 204 ? '' : await response.text();
+      if (!response.ok) throw new Error('Discord API ' + response.status + ': ' + raw.slice(0, 500));
+      if (!raw) return null;
+      try { return JSON.parse(raw); }
+      catch { throw new Error('Discord API a renvoyé une réponse non JSON (HTTP ' + response.status + ').'); }
     } catch (error) {
       lastError = error;
       console.error('DISCORD_API_ERROR', method, path, 'attempt', attempt, Date.now() - started + 'ms', error && error.message || error);
       const transient = error instanceof TypeError || error.name === 'TimeoutError' || /UND_ERR_SOCKET|fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(error));
       if (!transient || attempt === maxAttempts) throw error;
-      await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+      await new Promise(resolve => setTimeout(resolve, 500 * attempt));
     }
   }
   throw lastError;
 }
+
 async function editOriginal(interaction, content) {
   const url = API + '/webhooks/' + interaction.application_id + '/' + interaction.token + '/messages/@original';
   try {

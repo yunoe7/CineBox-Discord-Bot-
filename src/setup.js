@@ -13,35 +13,35 @@ const ROLE_DEFS = [
 
 const CATEGORIES = [
   { name: '01 • LE GRAND ÉCRAN', channels: [
-    ['👋-bienvenue', 'Bienvenue au club ! Présente-toi et découvre la communauté.'],
-    ['📢-actualités-cinébox', 'Les annonces et actualités officielles de CinéBox.'],
-    ['📜-règlement', 'Les règles pour que tout le monde profite du serveur.'],
-    ['✨-découvrir-cinébox', 'Découvre CinéBox et les liens utiles.'],
+    ['👋•bienvenue', 'Bienvenue au club ! Présente-toi et découvre la communauté.'],
+    ['📢•actualités-cinébox', 'Les annonces et actualités officielles de CinéBox.'],
+    ['📜•règlement', 'Les règles pour que tout le monde profite du serveur.'],
+    ['✨•découvrir-cinébox', 'Découvre CinéBox et les liens utiles.'],
   ]},
   { name: '02 • LE FOYER DES CINÉPHILES', channels: [
-    ['💬-le-salon', 'Le salon général de la communauté.'],
-    ['🎞️-discussions-films', 'Parlons cinéma et dernières sorties.'],
-    ['📺-discussions-séries', 'Vos séries du moment et vos théories.'],
-    ['🍿-soirée-cinéma', 'Organisons les prochaines soirées cinéma.'],
-    ['❤️-coups-de-cœur', 'Partage tes pépites et coups de cœur.'],
-    ['🔎-que-regarder', 'Besoin d’une recommandation ? Demande ici.'],
+    ['💬•le-salon', 'Le salon général de la communauté.'],
+    ['🎞️•discussions-films', 'Parlons cinéma et dernières sorties.'],
+    ['📺•discussions-séries', 'Vos séries du moment et vos théories.'],
+    ['🍿•soirée-cinéma', 'Organisons les prochaines soirées cinéma.'],
+    ['❤️•coups-de-cœur', 'Partage tes pépites et coups de cœur.'],
+    ['🔎•que-regarder', 'Besoin d’une recommandation ? Demande ici.'],
   ]},
   { name: '03 • LE CLUB VIP', channels: [
-    ['🌟-espace-vip', 'Un espace réservé aux membres VIP et à l’équipe.'],
-    ['🏆-membres-à-la-une', 'Les membres et contributions à l’honneur.'],
-    ['🎁-surprises', 'Surprises et événements spéciaux.'],
+    ['🌟•espace-vip', 'Un espace réservé aux membres VIP et à l’équipe.'],
+    ['🏆•membres-à-la-une', 'Les membres et contributions à l’honneur.'],
+    ['🎁•surprises', 'Surprises et événements spéciaux.'],
   ]},
   { name: '04 • ASSISTANCE & AMÉLIORATIONS', channels: [
-    ['🆘-besoin-daide', 'Une question ? La communauté et l’équipe sont là.'],
-    ['🐛-signaler-un-bug', 'Utilise /signaler pour transmettre un problème.'],
-    ['💡-boîte-à-idées', 'Utilise /suggestion pour proposer une amélioration.'],
-    ['🚀-nouveautés-à-venir', 'Les nouveautés et améliorations à venir.'],
+    ['🆘•besoin-daide', 'Une question ? La communauté et l’équipe sont là.'],
+    ['🐛•signaler-un-bug', 'Utilise /signaler pour transmettre un problème.'],
+    ['💡•boîte-à-idées', 'Utilise /suggestion pour proposer une amélioration.'],
+    ['🚀•nouveautés-à-venir', 'Les nouveautés et améliorations à venir.'],
   ]},
   { name: '05 • LES COULISSES (PRIVÉ)', private: true, channels: [
-    ['👑-direction', 'Espace privé de direction.'],
-    ['🛡️-modération', 'Coordination de la modération.'],
-    ['🧪-tests-cinébox', 'Tests internes du serveur et du site.'],
-    ['📋-journal-équipe', 'Suivi des actions de l’équipe.'],
+    ['👑•direction', 'Espace privé de direction.'],
+    ['🛡️•modération', 'Coordination de la modération.'],
+    ['🧪•tests-cinébox', 'Tests internes du serveur et du site.'],
+    ['📋•journal-équipe', 'Suivi des actions de l’équipe.'],
   ]},
 ];
 
@@ -75,6 +75,11 @@ async function getOrCreateCategory(guild, name, overwrites, created) {
 
 async function getOrCreateText(guild, category, name, topic, created) {
   let channel = guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name === name);
+  if (!channel && name.includes('•')) {
+    const legacyName = name.replace('•', '-');
+    channel = guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name === legacyName);
+    if (channel) await channel.setName(name, 'Harmonisation des noms CinéBox');
+  }
   if (!channel) {
     channel = await guild.channels.create({
       name, type: ChannelType.GuildText, parent: category.id, topic,
@@ -117,7 +122,7 @@ async function setupGuild(guild) {
       const channel = await getOrCreateText(guild, category, name, topic, created);
       textChannels[name] = channel;
       if (group.private) await channel.permissionOverwrites.set(staffOverwrite, 'Salons réservés à l’équipe');
-      if (name === '🌟-espace-vip') await channel.permissionOverwrites.set(vipOverwrite, 'Salon réservé aux VIP et à l’équipe');
+      if (name === '🌟•espace-vip') await channel.permissionOverwrites.set(vipOverwrite, 'Salon réservé aux VIP et à l’équipe');
     }
   }
 
@@ -134,18 +139,18 @@ async function setupGuild(guild) {
     }
   }
 
-  const welcome = textChannels['👋-bienvenue'];
+  const welcome = textChannels['👋•bienvenue'];
   if (!welcome.topic?.includes('[CINEBOX_WELCOME]')) {
     await welcome.setTopic('[CINEBOX_WELCOME] Bienvenue au club ! Présente-toi et découvre la communauté.');
   }
-  const rules = textChannels['📜-règlement'];
+  const rules = textChannels['📜•règlement'];
   if (rules && !rules.topic?.includes('[CINEBOX_RULES]')) {
     await rules.send({ content: '🎬 **Bienvenue au Club des Cinéphiles CinéBox !**\n\n1. Respecte chaque membre.\n2. Aucun harcèlement, discrimination ou insultes.\n3. Pas de spam ni de publicité non autorisée.\n4. Utilise les salons adaptés aux discussions.\n5. Attention aux spoilers : préviens et masque-les.\n6. Respecte les décisions de la modération.\n\nEn restant sur le serveur, tu acceptes ces règles. Bon visionnage ! 🍿' });
     await rules.setTopic('[CINEBOX_RULES] Règlement officiel du serveur.');
   }
-  const discover = textChannels['✨-découvrir-cinébox'];
+  const discover = textChannels['✨•découvrir-cinébox'];
   if (discover && !discover.topic?.includes('[CINEBOX_DISCOVER]')) {
-    await discover.send({ content: '✨ **Bienvenue sur CinéBox !**\n\nRetrouve ici la communauté des passionnés de films et de séries. Présente-toi dans <#' + welcome.id + '>, échange dans les salons thématiques et partage tes recommandations.\n\n📢 Les annonces officielles sont publiées dans <#' + textChannels['📢-actualités-cinébox'].id + '>.\n🆘 Besoin d’aide ? Rendez-vous dans <#' + textChannels['🆘-besoin-daide'].id + '>.\n\n**Installe-toi, la séance commence !** 🍿' });
+    await discover.send({ content: '✨ **Bienvenue sur CinéBox !**\n\nRetrouve ici la communauté des passionnés de films et de séries. Présente-toi dans <#' + welcome.id + '>, échange dans les salons thématiques et partage tes recommandations.\n\n📢 Les annonces officielles sont publiées dans <#' + textChannels['📢•actualités-cinébox'].id + '>.\n🆘 Besoin d’aide ? Rendez-vous dans <#' + textChannels['🆘•besoin-daide'].id + '>.\n\n**Installe-toi, la séance commence !** 🍿' });
     await discover.setTopic('[CINEBOX_DISCOVER] Présentation et liens utiles.');
   }
 

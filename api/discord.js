@@ -99,22 +99,49 @@ function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
 function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
 
 async function setupGuild(guildId, onProgress) {
-  const progress = async (message) => { if (onProgress) await onProgress(message); };
-  await progress('Connexion à Discord…');
-  const results = await Promise.all([discord('/guilds/' + guildId + '/roles'), discord('/guilds/' + guildId + '/channels')]);
-  const roles = results[0], channels = results[1], created = [];
+  const defs = [
+    { name: '👑 Fondateur', color: 0xf1c75b, hoist: true },
+    { name: '💎 VIP CinéBox', color: 0xd8b4fe, hoist: true },
+    { name: '🛡️ Modérateur', color: 0x60a5fa, hoist: true },
+    { name: '🎬 Cinéphile', color: 0xe5c76b, hoist: false },
+    { name: '🍿 Nouveau membre', color: 0x9ca3af, hoist: false }
+  ];
+  const groups = [
+    { name: '01 — LE GRAND ÉCRAN', channels: [['👋-bienvenue','Bienvenue au club ! Présente-toi et découvre la communauté.'],['📢-actualités-cinébox','Les annonces et actualités officielles de CinéBox.'],['📜-règlement','Les règles pour que tout le monde profite du serveur.'],['✨-découvrir-cinébox','Découvre CinéBox et les liens utiles.']] },
+    { name: '02 — LE FOYER DES CINÉPHILES', channels: [['💬-le-salon','Le salon général de la communauté.'],['🎞️-discussions-films','Parlons cinéma et dernières sorties.'],['📺-discussions-séries','Vos séries du moment et vos théories.'],['🍿-soirée-cinéma','Organisons les prochaines soirées cinéma.'],['❤️-coups-de-cœur','Vos pépites et coups de cœur.'],['🔎-que-regarder','Besoin d’une recommandation ? Demande ici.']] },
+    { name: '03 — LE CLUB VIP', channels: [['🌟-espace-vip','Un espace réservé aux membres VIP et à l’équipe.'],['🏆-membres-à-la-une','Les membres et contributions à l’honneur.'],['🎁-surprises','Surprises et événements spéciaux.']] },
+    { name: '04 — ASSISTANCE & AMÉLIORATIONS', channels: [['🆘-besoin-daide','Une question ? La communauté et l’équipe sont là.'],['🐛-signaler-un-bug','Utilise /signaler pour transmettre un problème.'],['💡-boîte-à-idées','Utilise /suggestion pour proposer une idée.'],['🚀-nouveautés-à-venir','Les nouveautés et améliorations à venir.']] },
+    { name: '05 — LES COULISSES (PRIVÉ)', private: true, channels: [['👑-direction','Espace privé de direction.'],['🛡️-modération','Coordination de la modération.'],['🧪-tests-cinébox','Tests internes du serveur et du site.'],['📋-journal-équipe','Suivi des actions de l’équipe.']] }
+  ];
+  const voiceNames = ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊・After Movie'];
+  const total = defs.length + groups.reduce((n, g) => n + 1 + g.channels.length, 0) + 1 + voiceNames.length + 2;
+  let done = 0, createdCount = 0, checked = 0, lastUpdate = 0;
+  const progress = async (phase, label, wasCreated) => {
+    done++;
+    if (wasCreated) createdCount++; else checked++;
+    const now = Date.now();
+    if (onProgress && (done === 1 || done === total || now - lastUpdate >= 900)) {
+      lastUpdate = now;
+      await onProgress({ done, total, phase, label, created: createdCount, checked });
+    }
+  };
+  if (onProgress) await onProgress({ done: 0, total, phase: 'Connexion', label: 'Lecture des rôles et salons existants', created: 0, checked: 0 });
+  const [roles, channels] = await Promise.all([
+    discord('/guilds/' + guildId + '/roles'),
+    discord('/guilds/' + guildId + '/channels')
+  ]);
+  const created = [];
   const roleIds = {};
-  await progress('Vérification des rôles…');
   for (const def of defs) {
     let role = roles.find(r => r.name === def.name);
+    let wasCreated = false;
     if (!role) {
       role = await discord('/guilds/' + guildId + '/roles', { method: 'POST', body: { name: def.name, color: def.color, hoist: def.hoist, mentionable: false } });
-      roles.push(role); created.push('Rôle ' + def.name);
+      roles.push(role); created.push('Rôle ' + def.name); wasCreated = true;
     }
     roleIds[def.name] = role.id;
+    await progress('Rôles', def.name, wasCreated);
   }
-
-  await progress('Rôles vérifiés. Préparation des catégories et salons…');
   const staff = [
     { id: guildId, type: 0, deny: PERM.VIEW },
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) },
@@ -126,18 +153,17 @@ async function setupGuild(guildId, onProgress) {
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
   ];
-
-
-
   async function getOrCreate(name, type, parentId, extra) {
     extra = extra || {};
     let channel = channels.find(c => c.name === name && c.type === type);
+    let wasCreated = false;
     if (!channel) {
       const body = Object.assign({ name, type }, extra);
       if (parentId) body.parent_id = parentId;
       channel = await discord('/guilds/' + guildId + '/channels', { method: 'POST', body });
       channels.push(channel);
       created.push((type === 4 ? 'Catégorie ' : type === 2 ? 'Vocal ' : '#') + name);
+      wasCreated = true;
     } else {
       const patch = {};
       if (parentId && channel.parent_id !== parentId) patch.parent_id = parentId;
@@ -148,30 +174,27 @@ async function setupGuild(guildId, onProgress) {
         Object.assign(channel, updated);
       }
     }
+    await progress(type === 4 ? 'Catégories' : type === 2 ? 'Salons vocaux' : 'Salons texte', name, wasCreated);
     return channel;
   }
-
   const textMap = {};
   for (const group of groups) {
     const category = await getOrCreate(group.name, 4, null, group.private ? { permission_overwrites: staff } : {});
-    for (const pair of group.channels) {
-      const channelName = pair[0], topic = pair[1];
+    for (const [channelName, topic] of group.channels) {
       const overwrites = group.private ? staff : channelName === '🌟-espace-vip' ? vip : undefined;
       const extra = { topic };
       if (overwrites) extra.permission_overwrites = overwrites;
       textMap[channelName] = await getOrCreate(channelName, 0, category.id, extra);
     }
   }
-  await progress('Salons textuels vérifiés. Préparation des salons vocaux…');
   const voiceCategory = await getOrCreate('06 — SALONS VOCAUX', 4, null, {});
   for (const name of voiceNames) await getOrCreate(name, 2, voiceCategory.id, {});
-
-  await progress('Salons vocaux vérifiés. Finalisation des messages de bienvenue et du règlement…');
   const rules = textMap['📜-règlement'];
   if (rules && !(rules.topic || '').includes('[CINEBOX_RULES]')) {
     await discord('/channels/' + rules.id + '/messages', { method: 'POST', body: { content: '🎬 **Bienvenue au Club des Cinéphiles CinéBox !**\n\n1. Respecte chaque membre.\n2. Aucun harcèlement, discrimination ou insultes.\n3. Pas de spam ni de publicité non autorisée.\n4. Utilise les salons adaptés aux discussions.\n5. Attention aux spoilers : préviens et masque-les.\n6. Respecte les décisions de la modération.\n\nEn restant sur le serveur, tu acceptes ces règles. Bon visionnage ! 🍿' } });
     await discord('/channels/' + rules.id, { method: 'PATCH', body: { topic: '[CINEBOX_RULES] Règlement officiel du serveur.' } });
   }
+  await progress('Finalisation', 'Règlement', false);
   const discover = textMap['✨-découvrir-cinébox'];
   if (discover && !(discover.topic || '').includes('[CINEBOX_DISCOVER]')) {
     const welcomeId = textMap['👋-bienvenue'].id, newsId = textMap['📢-actualités-cinébox'].id, helpId = textMap['🆘-besoin-daide'].id;
@@ -179,7 +202,8 @@ async function setupGuild(guildId, onProgress) {
     await discord('/channels/' + discover.id + '/messages', { method: 'POST', body: { content } });
     await discord('/channels/' + discover.id, { method: 'PATCH', body: { topic: '[CINEBOX_DISCOVER] Présentation et liens utiles.' } });
   }
-  return { created, roles: defs.length, textChannels: Object.keys(textMap).length, voiceChannels: 3 };
+  await progress('Finalisation', 'Message de présentation', false);
+  return { created, roles: defs.length, textChannels: Object.keys(textMap).length, voiceChannels: voiceNames.length };
 }
 
 async function discord(path, options) {

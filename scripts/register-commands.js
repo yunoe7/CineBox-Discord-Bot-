@@ -8,6 +8,14 @@ if (!DISCORD_TOKEN || !CLIENT_ID) {
 
 const commands = [
   new SlashCommandBuilder().setName('setup').setDescription('Installe ou répare la structure complète du serveur CinéBox.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('config-accueil').setDescription('Configure manuellement les messages de bienvenue et de départ.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addChannelOption(o => o.setName('salon-bienvenue').setDescription('Salon où publier les arrivées').addChannelTypes(ChannelType.GuildText).setRequired(false))
+    .addChannelOption(o => o.setName('salon-depart').setDescription('Salon où publier les départs').addChannelTypes(ChannelType.GuildText).setRequired(false))
+    .addBooleanOption(o => o.setName('activer-bienvenue').setDescription('Activer ou désactiver le message de bienvenue').setRequired(false))
+    .addBooleanOption(o => o.setName('activer-depart').setDescription('Activer ou désactiver le message de départ').setRequired(false))
+    .addBooleanOption(o => o.setName('role-automatique').setDescription('Attribuer automatiquement un rôle à l’arrivée').setRequired(false))
+    .addRoleOption(o => o.setName('role-nouveau').setDescription('Rôle à attribuer si le rôle automatique est activé').setRequired(false)),
   new SlashCommandBuilder().setName('reset-cinebox').setDescription('Supprime la structure CinéBox après confirmation.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('ping').setDescription('Vérifie que le bot répond.'),
   new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes CinéBox.'),

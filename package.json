@@ -4,7 +4,7 @@
   "description": "Bot officiel du serveur Discord CinéBox",
   "main": "src/index.js",
   "scripts": {
-    "start": "node api/discord.js",
+    "start": "node src/gateway.js",
     "dev": "node --watch src/index.js",
     "check": "node --check api/discord.js && node --check scripts/register-commands.js && node --check src/setup.js && node --check src/gateway.js",
     "register": "node scripts/register-commands.js",

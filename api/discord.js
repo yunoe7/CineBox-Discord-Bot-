@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
     try {
       const embed = {
         title: '🍿 ' + String(title).slice(0, 240),
-        description: 'Vote pour le prochain film de la communauté CinéBox !\\nTu peux modifier ton vote en cliquant sur un autre bouton.',
+        description: 'La communauté choisit la prochaine séance.\\n\\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\\n\\n*Un vote par clic : les votes multiples ne sont pas encore limités.*',
         color: 0xd8b45a,
         fields: films.map((film, index) => ({ name: film.slice(0, 240), value: '0 voix', inline: false })),
         footer: { text: 'CinéBox • Sondage cinéma' },
@@ -40,10 +40,10 @@ module.exports = async function handler(req, res) {
       await discord('/channels/' + interaction.channel_id + '/messages', {
         method: 'POST', body: { content: '🎬 **Nouveau sondage cinéma !**', embeds: [embed], components }
       });
-      return reply(res, '✅ Sondage publié dans ce salon. Les membres peuvent voter avec les boutons !');
+      return embedReply(res, { title: '🍿 Sondage publié !', description: 'Ton sondage est en ligne dans ce salon. Les membres peuvent maintenant choisir leur film préféré.', color: 0x57f287, footer: { text: 'CinéBox • Organisation des séances' }, timestamp: new Date().toISOString() });
     } catch (error) {
       console.error('CINEMA_POLL_CREATE_FAILED', error && error.stack || error);
-      return reply(res, '❌ Impossible de publier le sondage. Vérifie que le bot peut envoyer des messages et intégrer des liens.');
+      return embedReply(res, { title: '⚠️ Publication impossible', description: 'Le sondage n’a pas pu être publié. Vérifie que CinéBox possède les permissions **Voir le salon**, **Envoyer des messages** et **Intégrer des liens**.', color: 0xed4245, footer: { text: 'CinéBox • Assistance' } });
     }
   }
 
@@ -75,8 +75,8 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  if (name === 'ping') return reply(res, '🏓 Pong ! CinéBox répond via Vercel.');
-  if (name === 'help') return reply(res, '**🎬 CinéBox — Commandes**\n/setup — Installer ou réparer les rôles et salons (administrateurs)\n/ping — Vérifier le bot\n/sondage-cinema — Lancer un vote pour choisir un film\n/tirage-cinema — Tirer au sort le film de la séance\n/signaler — Transmettre un problème\n/suggestion — Proposer une idée');
+  if (name === 'ping') return embedReply(res, { title: '🏓 CinéBox est en ligne !', description: 'Tout fonctionne correctement. La séance peut commencer !', color: 0x57f287, footer: { text: 'CinéBox • Statut du bot' }, timestamp: new Date().toISOString() });
+  if (name === 'help') return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '🎬 Le guide du CinéBox', description: 'Toutes les commandes pour faire vivre le club des cinéphiles.', color: 0xd8b45a, fields: [{ name: '🍿 EXPÉRIENCE CINÉMA', value: '`/sondage-cinema` — Faites voter la communauté pour son prochain film.\n`/tirage-cinema` — Laissez le hasard choisir la prochaine séance.' }, { name: '🧰 VIE DU SERVEUR', value: '`/signaler` — Faites remonter un problème à l’équipe.\n`/suggestion` — Proposez une amélioration.' }, { name: '⚙️ OUTILS', value: '`/ping` — Vérifiez que le bot est disponible.\n`/setup` — Installez ou réparez le serveur (administrateurs).' }], footer: { text: 'CinéBox • Le Club des Cinéphiles' }, timestamp: new Date().toISOString() }] } });
 
   if (name === 'setup') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return reply(res, 'Cette commande est réservée aux administrateurs.');
@@ -90,20 +90,27 @@ module.exports = async function handler(req, res) {
           const percent = Math.min(100, Math.round(state.done / state.total * 100));
           const filled = Math.round(percent / 10);
           const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
-          const content = '🎬 **CinéBox — Installation du serveur**\n' + bar + ' **' + percent + '%**\n' +
-            'Étape **' + state.done + '/' + state.total + '** · ' + state.phase + '\n' +
-            'Dernière action : ' + state.label + '\n' +
-            'Créés : **' + state.created + '** · Vérifiés : **' + state.checked + '**';
+          const progressEmbed = {
+            title: '🎬 Installation de CinéBox',
+            description: bar + ' **' + percent + '%**\\n\\n' + (state.label || 'Préparation en cours…'),
+            color: 0xd8b45a,
+            fields: [
+              { name: 'Étape', value: state.done + ' / ' + state.total, inline: true },
+              { name: 'Créés', value: String(state.created), inline: true },
+              { name: 'Vérifiés', value: String(state.checked), inline: true }
+            ],
+            footer: { text: 'CinéBox • Configuration du serveur' }
+          };
           console.log('SETUP_PROGRESS', JSON.stringify(state));
           // Never let a slow Discord webhook update block the actual setup work.
-          void editOriginal(interaction, content);
+          void editOriginal(interaction, { content: '', embeds: [progressEmbed] });
         });
         const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
         console.log('SETUP_SUCCESS', result);
-        await editOriginal(interaction, '✅ **Structure CinéBox installée !**\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\n' + details);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '✨ Votre serveur CinéBox est prêt !', description: 'La structure du club a été installée avec succès. Place à la communauté ! 🍿', color: 0x57f287, fields: [{ name: 'Éléments créés', value: String(result.created.length), inline: true }, { name: 'Rôles', value: String(result.roles), inline: true }, { name: 'Salons texte', value: String(result.textChannels), inline: true }, { name: 'Salons vocaux', value: String(result.voiceChannels), inline: true }, { name: 'Détails', value: details.slice(0, 1000) }], footer: { text: 'CinéBox • Installation terminée' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('SETUP_FAILED', error && error.stack || error);
-        await editOriginal(interaction, '❌ Installation interrompue : ' + String(error.message || error).slice(0, 700));
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Installation interrompue', description: 'CinéBox n’a pas pu terminer la configuration.\\n\\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'CinéBox • Assistance administrateur' } }] });
       }
     })();
     waitUntil(task);
@@ -136,7 +143,7 @@ module.exports = async function handler(req, res) {
           timestamp: new Date().toISOString()
         }]
       }});
-      return reply(res, report ? '✅ Ton signalement a été transmis à l’équipe.' : '✅ Merci ! Ta suggestion a été transmise.');
+      return embedReply(res, { title: report ? '🐛 Signalement transmis' : '💡 Suggestion envoyée', description: report ? 'Merci de nous avoir prévenus. L’équipe CinéBox pourra examiner ton signalement.' : 'Merci de contribuer à faire évoluer CinéBox. Ton idée a bien été transmise à l’équipe.', color: 0x57f287, footer: { text: 'CinéBox • Merci pour ta participation' }, timestamp: new Date().toISOString() });
     } catch (error) {
       console.error('Message delivery failed:', error);
       return reply(res, 'Impossible de transmettre le message. Réessaie plus tard.');
@@ -185,7 +192,7 @@ function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
   }
 }
 
-function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
+function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }\nfunction embedReply(res, embed) { return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [embed] } }); }
 
 async function setupGuild(guildId, onProgress) {
   const defs = [
@@ -338,7 +345,7 @@ async function editOriginal(interaction, content) {
     const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(typeof content === 'string' ? { content } : content),
       signal: AbortSignal.timeout(7000)
     });
     if (!response.ok) console.error('SETUP_EDIT_FAILED', response.status, await response.text());

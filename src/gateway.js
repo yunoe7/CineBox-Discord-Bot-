@@ -16,14 +16,15 @@ function getTextChannel(guild, id, fallbackName) {
 }
 
 client.once('ready', () => {
-  console.log('CinéBox Gateway connecté : ' + client.user.tag);
+  console.log('CINEBOX_GATEWAY_READY ' + client.user.tag);
   client.user.setPresence({
     status: 'online',
-    activities: [{ name: 'le club CinéBox 🍿', type: ActivityType.Watching, url: SITE_URL }]
+    activities: [{ name: 'CinéBox 🍿', type: ActivityType.Streaming, url: SITE_URL }]
   });
 });
 
 client.on('guildMemberAdd', async member => {
+  console.log('CINEBOX_MEMBER_JOIN ' + member.user.id);
   try {
     const role = member.guild.roles.cache.get(process.env.NEW_MEMBER_ROLE_ID) ||
       member.guild.roles.cache.find(item => item.name === '🍿 Nouveau membre');
@@ -37,7 +38,7 @@ client.on('guildMemberAdd', async member => {
     const embed = new EmbedBuilder()
       .setColor(0xd8b45a)
       .setAuthor({ name: 'CINÉBOX  /  BIENVENUE AU CLUB' })
-      .setTitle('🎬 Bienvenue ' + member.user.globalName + ' !')
+      .setTitle('🎬 Bienvenue ' + (member.user.globalName || member.user.username) + ' !')
       .setDescription(
         'Installe-toi confortablement, la séance va commencer. 🍿\n\n' +
         'Tu rejoins **CinéBox**, le club des passionnés de films et de séries. ' +
@@ -59,6 +60,7 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('guildMemberRemove', async member => {
+  console.log('CINEBOX_MEMBER_LEAVE ' + member.user.id);
   try {
     const channel = getTextChannel(member.guild, process.env.GOODBYE_CHANNEL_ID || process.env.WELCOME_CHANNEL_ID, '👋-bienvenue');
     if (!channel) return;

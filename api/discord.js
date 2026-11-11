@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
     if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète.');
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     try {
-      const result = await setupGuild(interaction.guild_id);
+      const result = await setupGuild(interaction.guild_id, async (message) => editOriginal(interaction, '⏳ **CinéBox — Installation en cours**\n' + message));
       const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
       await editOriginal(interaction, '✅ **Structure CinéBox installée !**\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\n' + details);
     } catch (error) {
@@ -86,7 +86,7 @@ function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
 
 function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
 
-async function setupGuild(guildId) {
+async function setupGuild(guildId, onProgress) {\n  const progress = async (message) => { if (onProgress) await onProgress(message); };\n  await progress('Connexion à Discord…');
   const results = await Promise.all([discord('/guilds/' + guildId + '/roles'), discord('/guilds/' + guildId + '/channels')]);
   const roles = results[0], channels = results[1], created = [];
   const defs = [
@@ -96,7 +96,7 @@ async function setupGuild(guildId) {
     { name: '🎬 Cinéphile', color: 0xe5c76b, hoist: false },
     { name: '🍿 Nouveau membre', color: 0x9ca3af, hoist: false }
   ];
-  const roleIds = {};
+  const roleIds = {};\n  await progress('Vérification des rôles…');
   for (const def of defs) {
     let role = roles.find(r => r.name === def.name);
     if (!role) {
@@ -106,7 +106,7 @@ async function setupGuild(guildId) {
     roleIds[def.name] = role.id;
   }
 
-  const staff = [
+  await progress('Rôles vérifiés. Préparation des catégories et salons…');\n  const staff = [
     { id: guildId, type: 0, deny: PERM.VIEW },
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) },
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
@@ -159,10 +159,10 @@ async function setupGuild(guildId) {
       textMap[channelName] = await getOrCreate(channelName, 0, category.id, extra);
     }
   }
-  const voiceCategory = await getOrCreate('06 — SALONS VOCAUX', 4, null, {});
+  await progress('Salons textuels vérifiés. Préparation des salons vocaux…');\n  const voiceCategory = await getOrCreate('06 — SALONS VOCAUX', 4, null, {});
   for (const name of ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊・After Movie']) await getOrCreate(name, 2, voiceCategory.id, {});
 
-  const rules = textMap['📜-règlement'];
+  await progress('Salons vocaux vérifiés. Finalisation des messages de bienvenue et du règlement…');\n  const rules = textMap['📜-règlement'];
   if (rules && !(rules.topic || '').includes('[CINEBOX_RULES]')) {
     await discord('/channels/' + rules.id + '/messages', { method: 'POST', body: { content: '🎬 **Bienvenue au Club des Cinéphiles CinéBox !**\n\n1. Respecte chaque membre.\n2. Aucun harcèlement, discrimination ou insultes.\n3. Pas de spam ni de publicité non autorisée.\n4. Utilise les salons adaptés aux discussions.\n5. Attention aux spoilers : préviens et masque-les.\n6. Respecte les décisions de la modération.\n\nEn restant sur le serveur, tu acceptes ces règles. Bon visionnage ! 🍿' } });
     await discord('/channels/' + rules.id, { method: 'PATCH', body: { topic: '[CINEBOX_RULES] Règlement officiel du serveur.' } });

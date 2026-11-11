@@ -25,7 +25,17 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     console.log('SETUP_START', interaction.guild_id);
     try {
-      const result = await setupGuild(interaction.guild_id, async (message) => { console.log('SETUP_PROGRESS', message); await editOriginal(interaction, '⏳ **CinéBox — Installation en cours**\n' + message); });
+      const result = await setupGuild(interaction.guild_id, async (state) => {
+        const percent = Math.min(100, Math.round(state.done / state.total * 100));
+        const filled = Math.round(percent / 10);
+        const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
+        const content = '🎬 **CinéBox — Installation du serveur**\\n' + bar + ' **' + percent + '%**\\n' +
+          'Étape **' + state.done + '/' + state.total + '** · ' + state.phase + '\\n' +
+          'Dernière action : ' + state.label + '\\n' +
+          'Créés : **' + state.created + '** · Vérifiés : **' + state.checked + '**';
+        console.log('SETUP_PROGRESS', JSON.stringify(state));
+        await editOriginal(interaction, content);
+      });
       const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
       console.log('SETUP_SUCCESS', result);
       await editOriginal(interaction, '✅ **Structure CinéBox installée !**\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\n' + details);
@@ -93,13 +103,6 @@ async function setupGuild(guildId, onProgress) {
   await progress('Connexion à Discord…');
   const results = await Promise.all([discord('/guilds/' + guildId + '/roles'), discord('/guilds/' + guildId + '/channels')]);
   const roles = results[0], channels = results[1], created = [];
-  const defs = [
-    { name: '👑 Fondateur', color: 0xf1c75b, hoist: true },
-    { name: '💎 VIP CinéBox', color: 0xd8b4fe, hoist: true },
-    { name: '🛡️ Modérateur', color: 0x60a5fa, hoist: true },
-    { name: '🎬 Cinéphile', color: 0xe5c76b, hoist: false },
-    { name: '🍿 Nouveau membre', color: 0x9ca3af, hoist: false }
-  ];
   const roleIds = {};
   await progress('Vérification des rôles…');
   for (const def of defs) {
@@ -124,13 +127,7 @@ async function setupGuild(guildId, onProgress) {
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
   ];
 
-  const groups = [
-    { name: '01 — LE GRAND ÉCRAN', channels: [['👋-bienvenue','Bienvenue au club ! Présente-toi et découvre la communauté.'],['📢-actualités-cinébox','Les annonces et actualités officielles de CinéBox.'],['📜-règlement','Les règles pour que tout le monde profite du serveur.'],['✨-découvrir-cinébox','Découvre CinéBox et les liens utiles.']] },
-    { name: '02 — LE FOYER DES CINÉPHILES', channels: [['💬-le-salon','Le salon général de la communauté.'],['🎞️-discussions-films','Parlons cinéma et dernières sorties.'],['📺-discussions-séries','Vos séries du moment et vos théories.'],['🍿-soirée-cinéma','Organisons les prochaines soirées cinéma.'],['❤️-coups-de-cœur','Vos pépites et coups de cœur.'],['🔎-que-regarder','Besoin d’une recommandation ? Demande ici.']] },
-    { name: '03 — LE CLUB VIP', channels: [['🌟-espace-vip','Un espace réservé aux membres VIP et à l’équipe.'],['🏆-membres-à-la-une','Les membres et contributions à l’honneur.'],['🎁-surprises','Surprises et événements spéciaux.']] },
-    { name: '04 — ASSISTANCE & AMÉLIORATIONS', channels: [['🆘-besoin-daide','Une question ? La communauté et l’équipe sont là.'],['🐛-signaler-un-bug','Utilise /signaler pour transmettre un problème.'],['💡-boîte-à-idées','Utilise /suggestion pour proposer une amélioration.'],['🚀-nouveautés-à-venir','Les nouveautés et améliorations à venir.']] },
-    { name: '05 — LES COULISSES (PRIVÉ)', private: true, channels: [['👑-direction','Espace privé de direction.'],['🛡️-modération','Coordination de la modération.'],['🧪-tests-cinébox','Tests internes du serveur et du site.'],['📋-journal-équipe','Suivi des actions de l’équipe.']] }
-  ];
+
 
   async function getOrCreate(name, type, parentId, extra) {
     extra = extra || {};
@@ -167,7 +164,7 @@ async function setupGuild(guildId, onProgress) {
   }
   await progress('Salons textuels vérifiés. Préparation des salons vocaux…');
   const voiceCategory = await getOrCreate('06 — SALONS VOCAUX', 4, null, {});
-  for (const name of ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊・After Movie']) await getOrCreate(name, 2, voiceCategory.id, {});
+  for (const name of voiceNames) await getOrCreate(name, 2, voiceCategory.id, {});
 
   await progress('Salons vocaux vérifiés. Finalisation des messages de bienvenue et du règlement…');
   const rules = textMap['📜-règlement'];

@@ -189,6 +189,66 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  if (name === 'config-accueil') {
+    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'Seuls les administrateurs peuvent configurer les notifications.', color: 0xed4245 });
+    if (!interaction.guild_id) return embedReply(res, { title: '⚠️ Serveur introuvable', description: 'Cette commande doit être utilisée dans un serveur.', color: 0xed4245 });
+    const opts = interaction.data.options || [];
+    const get = key => opts.find(option => option.name === key)?.value;
+    const welcomeChannelId = get('salon-bienvenue');
+    const goodbyeChannelId = get('salon-depart');
+    const welcomeEnabled = get('activer-bienvenue');
+    const goodbyeEnabled = get('activer-depart');
+    const autoRoleEnabled = get('role-automatique');
+    const newMemberRoleId = get('role-nouveau');
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    const task = (async () => {
+      try {
+        const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
+        const configChannel = channels.find(channel => channel.name === '📋•journal-équipe' && channel.type === 0);
+        if (!configChannel) throw new Error('Le salon privé 📋•journal-équipe est introuvable. Lance /setup pour créer la structure CinéBox.');
+        const prefix = 'CINEBOX_WELCOME_CONFIG:';
+        let current = { welcomeEnabled: false, goodbyeEnabled: false, autoRoleEnabled: false, welcomeChannelId: null, goodbyeChannelId: null, newMemberRoleId: null };
+        const topic = configChannel.topic || '';
+        const saved = topic.match(/CINEBOX_WELCOME_CONFIG:(\\{[^}]*\\})/);
+        if (saved) { try { current = Object.assign(current, JSON.parse(saved[1])); } catch {} }
+        const validateChannel = id => !id || channels.some(channel => channel.id === id && channel.type === 0);
+        if (welcomeChannelId && !validateChannel(welcomeChannelId)) throw new Error('Le salon de bienvenue doit être un salon textuel de ce serveur.');
+        if (goodbyeChannelId && !validateChannel(goodbyeChannelId)) throw new Error('Le salon de départ doit être un salon textuel de ce serveur.');
+        const roles = await discord('/guilds/' + interaction.guild_id + '/roles');
+        if (newMemberRoleId && !roles.some(role => role.id === newMemberRoleId)) throw new Error('Le rôle sélectionné ne fait pas partie de ce serveur.');
+        if (welcomeChannelId !== undefined) current.welcomeChannelId = welcomeChannelId;
+        if (goodbyeChannelId !== undefined) current.goodbyeChannelId = goodbyeChannelId;
+        if (welcomeEnabled !== undefined) current.welcomeEnabled = welcomeEnabled;
+        if (goodbyeEnabled !== undefined) current.goodbyeEnabled = goodbyeEnabled;
+        if (autoRoleEnabled !== undefined) current.autoRoleEnabled = autoRoleEnabled;
+        if (newMemberRoleId !== undefined) current.newMemberRoleId = newMemberRoleId;
+        const encoded = prefix + JSON.stringify(current);
+        const otherTopic = topic.replace(/(?:^|\\s*)CINEBOX_WELCOME_CONFIG:\\{[^}]*\\}/, '').trim();
+        const nextTopic = [otherTopic, encoded].filter(Boolean).join(' ').slice(0, 1024);
+        await discord('/channels/' + configChannel.id, { method: 'PATCH', body: { topic: nextTopic } });
+        const channelLabel = id => id ? '<#' + id + '>' : 'Non configuré';
+        await editOriginal(interaction, { content: '', embeds: [{
+          author: { name: 'CINÉBOX  /  PARAMÈTRES DU CLUB' },
+          title: '⚙️ Notifications configurées',
+          description: 'Les réglages sont enregistrés dans le salon privé de l’équipe. Rien ne sera publié tant que tu n’actives pas les options correspondantes.',
+          color: 0xd8b45a,
+          fields: [
+            { name: '👋 Bienvenue', value: (current.welcomeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\\nSalon : ' + channelLabel(current.welcomeChannelId), inline: true },
+            { name: '🌙 Départs', value: (current.goodbyeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\\nSalon : ' + channelLabel(current.goodbyeChannelId), inline: true },
+            { name: '🍿 Rôle automatique', value: (current.autoRoleEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\\nRôle : ' + (current.newMemberRoleId ? '<@&' + current.newMemberRoleId + '>' : 'Non configuré'), inline: true }
+          ],
+          footer: { text: 'CINÉBOX  •  CONFIGURATION ADMINISTRATEUR' },
+          timestamp: new Date().toISOString()
+        }] });
+      } catch (error) {
+        console.error('CINEBOX_WELCOME_CONFIG_FAILED', error && error.stack || error);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Configuration impossible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
+      }
+    })();
+    waitUntil(task);
+    return;
+  }
+
   if (name === 'reset-cinebox') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });
     return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });

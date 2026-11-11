@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
       const event = await discord('/guilds/' + interaction.guild_id + '/scheduled-events', {
         method: 'POST',
         body: {
-          name: '🍿 CinéBox — ' + film.slice(0, 90),
+          name: '🍿 CinéBox — ' + film.slice(0, 80),
           description: (details || 'Une séance cinéma organisée par la communauté CinéBox.') + '\n\nFilm : ' + film,
           scheduled_start_time: start.toISOString(),
           scheduled_end_time: end.toISOString(),
@@ -201,9 +201,9 @@ module.exports = async function handler(req, res) {
         description: 'Retrouve ici les commandes essentielles pour faire vivre le serveur.\n*Choisis ta catégorie et lance ta commande directement dans Discord.*',
         color: 0xd8b45a,
         fields: [
-          { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote pour choisir le prochain film.\n\n`/tirage-cinema`\nConfie le choix de la séance au hasard.', inline: false },
+          { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote pour choisir le prochain film.\n\n`/tirage-cinema`\nConfie le choix de la séance au hasard.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste ta culture cinéma avec un quiz.', inline: false },
           { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour améliorer CinéBox.\n\n`/signaler`\nPréviens l’équipe en cas de problème.', inline: false },
-          { name: '🎬  EN COULISSES', value: '`/ping`\nVérifie que le bot est en ligne.\n\n`/setup`\nInstalle ou répare les salons et rôles *(administrateurs)*.', inline: false }
+          { name: '🎬  EN COULISSES', value: '`/ping`\nVérifie que le bot est en ligne.\n\n`/setup`\nInstalle ou répare les salons et rôles *(administrateurs)*.\n\n`/programmer-seance`\nCrée un événement officiel pour la prochaine séance *(Gérer les événements)*.', inline: false }
         ],
         footer: { text: 'CinéBox • Installe-toi, la séance va commencer 🍿' },
         timestamp: new Date().toISOString()

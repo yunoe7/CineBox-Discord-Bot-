@@ -2,7 +2,7 @@ const nacl = require('tweetnacl');
 const { waitUntil } = require('@vercel/functions');
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
-const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n };
+const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n, CREATE_EVENTS: 17592186044416n };
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).send('Method Not Allowed'); }
@@ -133,8 +133,8 @@ module.exports = async function handler(req, res) {
   }
 
   if (name === 'programmer-seance') {
-    if (!hasPermission(interaction.member?.permissions, PERM.MANAGE_EVENTS) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
-      return embedReply(res, { title: '🔒 Permission nécessaire', description: 'La programmation d’une séance nécessite la permission Gérer les événements.', color: 0xed4245 });
+    if (!hasPermission(interaction.member?.permissions, PERM.CREATE_EVENTS) && !hasPermission(interaction.member?.permissions, PERM.MANAGE_EVENTS) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
+      return embedReply(res, { title: '🔒 Permission nécessaire', description: 'La programmation d’une séance nécessite la permission Créer des événements (ou Gérer les événements).', color: 0xed4245 });
     }
     if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Le bot ne peut pas accéder au serveur.', color: 0xed4245 });
     const opts = interaction.data.options || [];

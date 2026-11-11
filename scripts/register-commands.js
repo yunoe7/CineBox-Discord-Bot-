@@ -7,7 +7,7 @@ if (!DISCORD_TOKEN || !CLIENT_ID) {
 }
 
 const commands = [
-  new SlashCommandBuilder().setName('setup').setDescription('Installe la structure CinéBox (migration en cours).').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('setup').setDescription('Installe ou répare la structure complète du serveur CinéBox.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('ping').setDescription('Vérifie que le bot répond.'),
   new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes CinéBox.'),
   new SlashCommandBuilder().setName('signaler').setDescription('Signale un bug ou un problème à l’équipe.')

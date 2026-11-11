@@ -43,7 +43,7 @@ const commands = [
     )),
   new SlashCommandBuilder().setName('quiz-cinema').setDescription('Teste ta culture cinéma avec une question interactive.'),
   new SlashCommandBuilder().setName('programmer-seance').setDescription('Crée un événement Discord pour la prochaine séance cinéma.')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents)
+    .setDefaultMemberPermissions(17592186044416n)
     .addStringOption(o => o.setName('film').setDescription('Film de la séance').setRequired(true).setMaxLength(100))
     .addStringOption(o => o.setName('date').setDescription('Date au format AAAA-MM-JJ, heure de Paris').setRequired(true).setMaxLength(10))
     .addStringOption(o => o.setName('heure').setDescription('Heure au format HH:MM, heure de Paris').setRequired(true).setMaxLength(5))

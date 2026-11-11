@@ -25,27 +25,40 @@ client.once('clientReady', () => {
   });
 });
 
+async function readWelcomeConfig(guild) {
+  try {
+    const configChannel = guild.channels.cache.find(channel => channel.name === '📋•journal-équipe' && channel.isTextBased());
+    if (!configChannel) return null;
+    const fresh = await configChannel.fetch(true);
+    const match = (fresh.topic || '').match(/CINEBOX_WELCOME_CONFIG:(\\{[^}]*\\})/);
+    if (!match) return null;
+    return JSON.parse(match[1]);
+  } catch (error) {
+    console.error('CINEBOX_WELCOME_CONFIG_READ_FAILED', error);
+    return null;
+  }
+}
+
 client.on('guildMemberAdd', async member => {
   console.log('CINEBOX_MEMBER_JOIN ' + member.user.id);
   try {
-    const role = member.guild.roles.cache.get(process.env.NEW_MEMBER_ROLE_ID) ||
-      member.guild.roles.cache.find(item => item.name === '🍿 Nouveau membre');
-    if (role) await member.roles.add(role, 'Bienvenue dans le club CinéBox');
-
-    const channel = getTextChannel(member.guild, process.env.WELCOME_CHANNEL_ID, '👋•bienvenue');
-    if (!channel) return;
-
-    const intro = process.env.INTRO_CHANNEL_ID ? '<#' + process.env.INTRO_CHANNEL_ID + '>' : 'le salon de présentation';
-    const rules = process.env.RULES_CHANNEL_ID ? '<#' + process.env.RULES_CHANNEL_ID + '>' : 'le salon règlement';
+    const config = await readWelcomeConfig(member.guild);
+    if (!config) return;
+    if (config.autoRoleEnabled && config.newMemberRoleId) {
+      const role = await member.guild.roles.fetch(config.newMemberRoleId).catch(() => null);
+      if (role) await member.roles.add(role, 'Rôle automatique configuré par un administrateur CinéBox');
+    }
+    if (!config.welcomeEnabled || !config.welcomeChannelId) return;
+    const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) return;
     const embed = new EmbedBuilder()
       .setColor(0xd8b45a)
       .setAuthor({ name: 'CINÉBOX  /  BIENVENUE AU CLUB' })
       .setTitle('🎬 Bienvenue ' + (member.user.globalName || member.user.username) + ' !')
       .setDescription(
-        'Installe-toi confortablement, la séance va commencer. 🍿\n\n' +
+        'Installe-toi confortablement, la séance va commencer. 🍿\\n\\n' +
         'Tu rejoins **CinéBox**, le club des passionnés de films et de séries. ' +
-        'Présente-toi dans ' + intro + ', prends connaissance du règlement dans ' + rules +
-        ' et partage tes découvertes avec la communauté.\n\n' +
+        'Présente-toi et découvre les salons du serveur.\\n\\n' +
         '🌐 [Découvrir le site CinéBox](' + SITE_URL + ')'
       )
       .setThumbnail(member.user.displayAvatarURL({ extension: 'png', size: 256 }))
@@ -64,16 +77,18 @@ client.on('guildMemberAdd', async member => {
 client.on('guildMemberRemove', async member => {
   console.log('CINEBOX_MEMBER_LEAVE ' + member.user.id);
   try {
-    const channel = getTextChannel(member.guild, process.env.GOODBYE_CHANNEL_ID || process.env.WELCOME_CHANNEL_ID, '👋•bienvenue');
-    if (!channel) return;
+    const config = await readWelcomeConfig(member.guild);
+    if (!config || !config.goodbyeEnabled || !config.goodbyeChannelId) return;
+    const channel = await member.guild.channels.fetch(config.goodbyeChannelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) return;
     const embed = new EmbedBuilder()
       .setColor(0x64748b)
       .setAuthor({ name: 'CINÉBOX  /  À BIENTÔT' })
       .setTitle('🌙 Une place se libère dans la salle…')
       .setDescription(
-        '**' + member.user.username + '** quitte le club.\n\n' +
+        '**' + member.user.username + '** quitte le club.\\n\\n' +
         'Merci d’avoir partagé un bout de l’aventure CinéBox avec nous. ' +
-        'Les portes du ciné-club te resteront ouvertes. À une prochaine séance ! 🍿\n\n' +
+        'Les portes du ciné-club te resteront ouvertes. À une prochaine séance ! 🍿\\n\\n' +
         '🌐 [Retrouver CinéBox](' + SITE_URL + ')'
       )
       .setThumbnail(member.user.displayAvatarURL({ extension: 'png', size: 256 }))

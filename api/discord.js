@@ -1,5 +1,5 @@
 const nacl = require('tweetnacl');
-const { waitUntil } = require('@vercel/functions');
+const waitUntil = task => { void task.catch(error => console.error('BACKGROUND_TASK_FAILED', error)); };
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
 const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n, CREATE_EVENTS: 17592186044416n };

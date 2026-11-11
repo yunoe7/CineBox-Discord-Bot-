@@ -14,9 +14,47 @@ module.exports = async function handler(req, res) {
   let interaction;
   try { interaction = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).send('Invalid JSON'); }
   if (interaction.type === 1) return res.status(200).json({ type: 1 });
+  if (interaction.type === 3) return handleCinemaVote(interaction, res);
   if (interaction.type !== 2) return res.status(400).send('Unsupported interaction');
 
   const name = interaction.data && interaction.data.name;
+  if (name === 'sondage-cinema') {
+    if (!process.env.DISCORD_TOKEN || !interaction.channel_id) return reply(res, 'Configuration incomplète.');
+    const opts = interaction.data.options || [];
+    const get = key => opts.find(option => option.name === key)?.value;
+    const title = get('titre');
+    const films = ['film1','film2','film3','film4'].map(get).filter(Boolean).map(x => String(x).trim()).filter(Boolean);
+    if (!title || films.length < 2) return reply(res, 'Il faut un titre et au moins deux films.');
+    try {
+      const embed = {
+        title: '🍿 ' + String(title).slice(0, 240),
+        description: 'Vote pour le prochain film de la communauté CinéBox !\\nTu peux modifier ton vote en cliquant sur un autre bouton.',
+        color: 0xd8b45a,
+        fields: films.map((film, index) => ({ name: film.slice(0, 240), value: '0 voix', inline: false })),
+        footer: { text: 'CinéBox • Sondage cinéma' },
+        timestamp: new Date().toISOString()
+      };
+      const components = [{ type: 1, components: films.map((film, index) => ({
+        type: 2, style: 1, custom_id: 'cine_vote_' + index, label: 'Voter · ' + film.slice(0, 65)
+      })) }];
+      await discord('/channels/' + interaction.channel_id + '/messages', {
+        method: 'POST', body: { content: '🎬 **Nouveau sondage cinéma !**', embeds: [embed], components }
+      });
+      return reply(res, '✅ Sondage publié dans ce salon. Les membres peuvent voter avec les boutons !');
+    } catch (error) {
+      console.error('CINEMA_POLL_CREATE_FAILED', error && error.stack || error);
+      return reply(res, '❌ Impossible de publier le sondage. Vérifie que le bot peut envoyer des messages et intégrer des liens.');
+    }
+  }
+
+  if (name === 'tirage-cinema') {
+    const opts = interaction.data.options || [];
+    const films = ['film1','film2','film3','film4'].map(key => opts.find(option => option.name === key)?.value).filter(Boolean);
+    if (films.length < 2) return reply(res, 'Ajoute au moins deux films pour effectuer le tirage.');
+    const winner = films[Math.floor(Math.random() * films.length)];
+    return reply(res, '🎲 **Le choix du CinéBox est tombé !**\\n\\n🍿 Ce soir, on regarde : **' + String(winner).slice(0, 200) + '**\\n\\nBonne séance à tous !');
+  }
+
   if (name === 'ping') return reply(res, '🏓 Pong ! CinéBox répond via Vercel.');
   if (name === 'help') return reply(res, '**🎬 CinéBox — Commandes**\n/setup — Installer ou réparer les rôles et salons (administrateurs)\n/ping — Vérifier le bot\n/signaler — Transmettre un problème\n/suggestion — Proposer une idée');
 
@@ -86,6 +124,31 @@ module.exports = async function handler(req, res) {
   }
   return reply(res, 'Commande inconnue.');
 };
+
+function handleCinemaVote(interaction, res) {
+  const customId = interaction.data && interaction.data.custom_id || '';
+  const match = /^cine_vote_(\\d+)$/.exec(customId);
+  if (!match || !interaction.message || !interaction.message.embeds || !interaction.message.embeds[0]) {
+    return res.status(200).json({ type: 4, data: { content: 'Ce vote n’est plus disponible.', flags: EPHEMERAL } });
+  }
+  const index = Number(match[1]);
+  const embed = JSON.parse(JSON.stringify(interaction.message.embeds[0]));
+  const fields = embed.fields || [];
+  if (!Number.isInteger(index) || index < 0 || index >= fields.length) {
+    return res.status(200).json({ type: 4, data: { content: 'Option de vote invalide.', flags: EPHEMERAL } });
+  }
+  const current = Number.parseInt(String(fields[index].value || '0').match(/\\d+/)?.[0] || '0', 10);
+  fields[index].value = (current + 1) + ' voix';
+  embed.fields = fields;
+  const components = [{ type: 1, components: fields.map((field, i) => ({
+    type: 2,
+    style: i === index ? 3 : 1,
+    custom_id: 'cine_vote_' + i,
+    label: 'Voter · ' + String(field.name).slice(0, 65)
+  })) }];
+  console.log('CINEMA_VOTE', JSON.stringify({ guild: interaction.guild_id, option: index }));
+  return res.status(200).json({ type: 7, data: { embeds: [embed], components } });
+}
 
 function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
   if (!signature || !timestamp || !publicKey) return false;

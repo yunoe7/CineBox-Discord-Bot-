@@ -23,13 +23,15 @@ module.exports = async function handler(req, res) {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return reply(res, 'Cette commande est réservée aux administrateurs.');
     if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return reply(res, 'Configuration du bot incomplète.');
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    console.log('SETUP_START', interaction.guild_id);
     try {
-      const result = await setupGuild(interaction.guild_id, async (message) => editOriginal(interaction, '⏳ **CinéBox — Installation en cours**\n' + message));
+      const result = await setupGuild(interaction.guild_id, async (message) => { console.log('SETUP_PROGRESS', message); await editOriginal(interaction, '⏳ **CinéBox — Installation en cours**\n' + message); });
       const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
+      console.log('SETUP_SUCCESS', result);
       await editOriginal(interaction, '✅ **Structure CinéBox installée !**\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\n' + details);
     } catch (error) {
-      console.error('Setup failed:', error);
-      await editOriginal(interaction, '❌ Installation incomplète. Vérifie les permissions **Gérer les rôles** et **Gérer les salons**, ainsi que la position du rôle du bot.');
+      console.error('SETUP_FAILED', error && error.stack || error);
+      await editOriginal(interaction, '❌ Installation interrompue : ' + String(error.message || error).slice(0, 700));
     }
     return;
   }
@@ -217,7 +219,8 @@ async function discord(path, options) {
 async function editOriginal(interaction, content) {
   const url = API + '/webhooks/' + interaction.application_id + '/' + interaction.token + '/messages/@original';
   const response = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
-  if (!response.ok) console.error('Could not edit setup response:', response.status, await response.text());
+  if (!response.ok) console.error('SETUP_EDIT_FAILED', response.status, await response.text());
+  else console.log('SETUP_EDIT_OK');
 }
 function bitset() { return String(Array.from(arguments).reduce((sum, value) => sum | BigInt(value), 0n)); }
 function hasPermission(value, permission) {

@@ -8,7 +8,7 @@
     "dev": "node --watch src/index.js",
     "check": "node --check api/discord.js && node --check scripts/register-commands.js && node --check src/setup.js",
     "register": "node scripts/register-commands.js",
-    "vercel-build": "npm run register"
+    "vercel-build": "npm run check && npm run register"
   },
   "engines": {
     "node": ">=20"

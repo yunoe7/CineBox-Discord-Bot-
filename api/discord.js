@@ -86,8 +86,8 @@ async function setupGuild(guildId) {
 
   const staff = [
     { id: guildId, type: 0, deny: PERM.VIEW },
-    { id: roleIds['👑 Fondateur'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY + PERM.MANAGE_MESSAGES },
-    { id: roleIds['🛡️ Modérateur'], type: 0, allow: PERM.VIEW + PERM.SEND + PERM.HISTORY + PERM.MANAGE_MESSAGES }
+    { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) },
+    { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) + PERM.MANAGE_MESSAGES }
   ];
   const vip = [
     { id: guildId, type: 0, deny: PERM.VIEW },
@@ -176,6 +176,7 @@ async function editOriginal(interaction, content) {
   const response = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
   if (!response.ok) console.error('Could not edit setup response:', response.status, await response.text());
 }
+function bitset() { return String(Array.from(arguments).reduce((sum, value) => sum | BigInt(value), 0n)); }
 function hasPermission(value, permission) {
   try { return (BigInt(value || '0') & permission) === permission; } catch { return false; }
 }
@@ -184,3 +185,5 @@ async function readRawBody(req) {
   for await (const chunk of req) chunks.push(Buffer.from(chunk));
   return Buffer.concat(chunks);
 }
+
+module.exports.config = { api: { bodyParser: false } };

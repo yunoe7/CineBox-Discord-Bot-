@@ -32,17 +32,17 @@ module.exports = async function handler(req, res) {
           const percent = Math.min(100, Math.round(state.done / state.total * 100));
           const filled = Math.round(percent / 10);
           const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
-          const content = '🎬 **CinéBox — Installation du serveur**\\n' + bar + ' **' + percent + '%**\\n' +
-            'Étape **' + state.done + '/' + state.total + '** · ' + state.phase + '\\n' +
-            'Dernière action : ' + state.label + '\\n' +
+          const content = '🎬 **CinéBox — Installation du serveur**\n' + bar + ' **' + percent + '%**\n' +
+            'Étape **' + state.done + '/' + state.total + '** · ' + state.phase + '\n' +
+            'Dernière action : ' + state.label + '\n' +
             'Créés : **' + state.created + '** · Vérifiés : **' + state.checked + '**';
           console.log('SETUP_PROGRESS', JSON.stringify(state));
           // Never let a slow Discord webhook update block the actual setup work.
           void editOriginal(interaction, content);
         });
-        const details = result.created.length ? result.created.map(x => '• ' + x).join('\\n') : 'Tout était déjà en place : aucun doublon créé.';
+        const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
         console.log('SETUP_SUCCESS', result);
-        await editOriginal(interaction, '✅ **Structure CinéBox installée !**\\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\\n' + details);
+        await editOriginal(interaction, '✅ **Structure CinéBox installée !**\n' + result.created.length + ' éléments créés, ' + result.roles + ' rôles, ' + result.textChannels + ' salons texte et ' + result.voiceChannels + ' salons vocaux vérifiés.\n' + details);
       } catch (error) {
         console.error('SETUP_FAILED', error && error.stack || error);
         await editOriginal(interaction, '❌ Installation interrompue : ' + String(error.message || error).slice(0, 700));

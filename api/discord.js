@@ -2,7 +2,7 @@ const nacl = require('tweetnacl');
 const { waitUntil } = require('@vercel/functions');
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
-const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536' };
+const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n };
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).send('Method Not Allowed'); }

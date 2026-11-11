@@ -1,4 +1,4 @@
-const { verifyKey } = require('discord-interactions');
+const nacl = require('tweetnacl');
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
 const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536' };
@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
   const raw = await readRawBody(req);
   const sig = req.headers['x-signature-ed25519'];
   const ts = req.headers['x-signature-timestamp'];
-  if (!sig || !ts || !process.env.DISCORD_PUBLIC_KEY || !(await verifyKey(raw, sig, ts, process.env.DISCORD_PUBLIC_KEY)))
+  if (!isValidDiscordSignature(raw, sig, ts, process.env.DISCORD_PUBLIC_KEY))
     return res.status(401).send('Invalid request signature');
   let interaction;
   try { interaction = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).send('Invalid JSON'); }
@@ -68,6 +68,21 @@ module.exports = async function handler(req, res) {
   }
   return reply(res, 'Commande inconnue.');
 };
+
+function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
+  if (!signature || !timestamp || !publicKey) return false;
+  if (!/^[0-9a-f]{128}$/i.test(signature) || !/^[0-9a-f]{64}$/i.test(publicKey)) return false;
+  try {
+    return nacl.sign.detached.verify(
+      Buffer.from(timestamp + rawBody.toString('utf8'), 'utf8'),
+      Buffer.from(signature, 'hex'),
+      Buffer.from(publicKey, 'hex')
+    );
+  } catch (error) {
+    console.error('Discord signature verification error:', error.message);
+    return false;
+  }
+}
 
 function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
 

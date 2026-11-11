@@ -191,7 +191,8 @@ module.exports = async function handler(req, res) {
 
   if (name === 'reset-cinebox') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });
-    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });\n  }
+    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
+  }
 
   if (name === 'ping') {
     const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;

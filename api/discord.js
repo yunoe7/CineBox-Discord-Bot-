@@ -14,7 +14,7 @@ module.exports = async function handler(req, res) {
   let interaction;
   try { interaction = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).send('Invalid JSON'); }
   if (interaction.type === 1) return res.status(200).json({ type: 1 });
-  if (interaction.type === 3) return handleCinemaVote(interaction, res);
+  if (interaction.type === 3) return handleCinemaComponent(interaction, res);
   if (interaction.type !== 2) return res.status(400).send('Unsupported interaction');
 
   const name = interaction.data && interaction.data.name;
@@ -73,6 +73,107 @@ module.exports = async function handler(req, res) {
         }]
       }
     });
+  }
+
+  if (name === 'recommandation-cinema') {
+    const opts = interaction.data.options || [];
+    const genre = opts.find(option => option.name === 'genre')?.value || 'tous';
+    const mood = opts.find(option => option.name === 'ambiance')?.value || 'surprise';
+    const candidates = MOVIE_LIBRARY.filter(movie =>
+      (genre === 'tous' || movie.genres.includes(genre)) &&
+      (mood === 'surprise' || movie.moods.includes(mood))
+    );
+    const pool = candidates.length ? candidates : MOVIE_LIBRARY.filter(movie => genre === 'tous' || movie.genres.includes(genre));
+    const movie = pool[Math.floor(Math.random() * pool.length)];
+    const moodNames = { detente: 'Détente', frissons: 'Frissons', evasion: 'Évasion', emotion: 'Émotion', reflexion: 'Réflexion', surprise: 'Surprise' };
+    const genreNames = { tous: 'Tous les genres', aventure: 'Aventure', animation: 'Animation', comedie: 'Comédie', drame: 'Drame', 'science-fiction': 'Science-fiction', thriller: 'Thriller' };
+    return embedReply(res, {
+      author: { name: 'CINÉBOX • SÉLECTION DU CLUB' },
+      title: '🎞️ ' + movie.title,
+      description: movie.synopsis,
+      color: 0xd8b45a,
+      fields: [
+        { name: 'POURQUOI CE FILM ?', value: movie.pitch, inline: false },
+        { name: 'AMBIANCE', value: moodNames[mood] || 'Surprise', inline: true },
+        { name: 'GENRE', value: genreNames[genre] || 'Tous les genres', inline: true },
+        { name: 'FICHE', value: movie.year + ' • ' + movie.duration + ' min', inline: true }
+      ],
+      footer: { text: 'CinéBox • Une recommandation, une nouvelle séance 🍿' },
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  if (name === 'quiz-cinema') {
+    const questionIndex = Math.floor(Math.random() * CINEMA_QUIZ.length);
+    const question = CINEMA_QUIZ[questionIndex];
+    const components = [{ type: 1, components: question.answers.map((answer, index) => ({
+      type: 2, style: 1,
+      custom_id: 'cine_quiz_' + questionIndex + '_' + index + '_' + question.correct,
+      label: String.fromCharCode(65 + index) + ' · ' + answer.slice(0, 70)
+    })) }];
+    return res.status(200).json({
+      type: 4,
+      data: {
+        flags: EPHEMERAL,
+        embeds: [{
+          author: { name: 'CINÉBOX • LE QUIZ DU CLUB' },
+          title: '🎬 Question de culture cinéma',
+          description: '**' + question.question + '**\n\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
+          color: 0xd8b45a,
+          footer: { text: 'CinéBox • Le défi du cinéphile' }
+        }],
+        components
+      }
+    });
+  }
+
+  if (name === 'programmer-seance') {
+    if (!hasPermission(interaction.member?.permissions, PERM.MANAGE_EVENTS) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
+      return embedReply(res, { title: '🔒 Permission nécessaire', description: 'La programmation d’une séance nécessite la permission Gérer les événements.', color: 0xed4245 });
+    }
+    if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Le bot ne peut pas accéder au serveur.', color: 0xed4245 });
+    const opts = interaction.data.options || [];
+    const get = key => opts.find(option => option.name === key)?.value;
+    const film = String(get('film') || '').trim();
+    const date = String(get('date') || '').trim();
+    const heure = String(get('heure') || '').trim();
+    const channelId = get('salon');
+    const duration = get('duree') || 120;
+    const details = String(get('description') || '').trim();
+    const start = parisDateTimeToDate(date, heure);
+    if (!film || !channelId || !start) {
+      return embedReply(res, { title: '📝 Informations invalides', description: 'Vérifie le film, le salon vocal, la date AAAA-MM-JJ et l’heure HH:MM (heure de Paris). Certaines heures n’existent pas lors du changement d’heure.', color: 0xed4245 });
+    }
+    if (start.getTime() < Date.now() + 10 * 60 * 1000) {
+      return embedReply(res, { title: '⏰ Séance trop proche', description: 'Choisis une date située au moins 10 minutes dans le futur.', color: 0xed4245 });
+    }
+    const end = new Date(start.getTime() + Math.min(360, Math.max(60, Number(duration))) * 60000);
+    const unixStart = Math.floor(start.getTime() / 1000);
+    try {
+      const event = await discord('/guilds/' + interaction.guild_id + '/scheduled-events', {
+        method: 'POST',
+        body: {
+          name: '🍿 CinéBox — ' + film.slice(0, 90),
+          description: (details || 'Une séance cinéma organisée par la communauté CinéBox.') + '\n\nFilm : ' + film,
+          scheduled_start_time: start.toISOString(),
+          scheduled_end_time: end.toISOString(),
+          privacy_level: 2,
+          entity_type: 2,
+          channel_id: channelId
+        }
+      });
+      return embedReply(res, {
+        author: { name: 'CINÉBOX • PROGRAMMATION' },
+        title: '🍿 La séance est officiellement programmée !',
+        description: '**' + film + '**\n\n📅 <t:' + unixStart + ':F>\n⏳ <t:' + unixStart + ':R>\n🔊 <#' + channelId + '>\n\n[Voir l’événement Discord](https://discord.com/events/' + interaction.guild_id + '/' + event.id + ')',
+        color: 0x57f287,
+        footer: { text: 'CinéBox • Bloque la date et prépare le pop-corn !' },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('CINEMA_EVENT_CREATE_FAILED', error && error.stack || error);
+      return embedReply(res, { title: '⚠️ Événement non créé', description: 'Discord a refusé la création. Vérifie que le bot possède la permission Gérer les événements et peut accéder au salon vocal.\n\n' + String(error.message || error).slice(0, 500), color: 0xed4245 });
+    }
   }
 
   if (name === 'ping') {
@@ -207,6 +308,99 @@ function handleCinemaVote(interaction, res) {
   })) }];
   console.log('CINEMA_VOTE', JSON.stringify({ guild: interaction.guild_id, option: index }));
   return res.status(200).json({ type: 7, data: { embeds: [embed], components } });
+}
+
+const MOVIE_LIBRARY = [
+  { title: 'Interstellar', year: 2014, duration: 169, genres: ['science-fiction','aventure','drame'], moods: ['evasion','emotion','reflexion'], synopsis: 'Dans un futur où la Terre devient difficilement habitable, une équipe part chercher un nouvel horizon pour l’humanité.', pitch: 'Une grande aventure spatiale, spectaculaire et profondément humaine.' },
+  { title: 'Le Voyage de Chihiro', year: 2001, duration: 125, genres: ['animation','aventure'], moods: ['evasion','emotion','reflexion'], synopsis: 'Une jeune fille découvre un monde mystérieux peuplé d’esprits et doit trouver le courage de sauver ses proches.', pitch: 'Un univers merveilleux, inventif et inoubliable.' },
+  { title: 'Intouchables', year: 2011, duration: 112, genres: ['comedie','drame'], moods: ['detente','emotion'], synopsis: 'Une amitié inattendue bouleverse le quotidien de deux hommes que tout semble opposer.', pitch: 'De l’humour, de la tendresse et une belle dose d’humanité.' },
+  { title: 'Spider-Man: New Generation', year: 2018, duration: 117, genres: ['animation','aventure','science-fiction'], moods: ['detente','evasion'], synopsis: 'Miles Morales découvre qu’il n’est pas le seul Spider-Man et que plusieurs univers peuvent se rencontrer.', pitch: 'Une animation inventive et une énergie visuelle incroyable.' },
+  { title: 'Get Out', year: 2017, duration: 104, genres: ['thriller','drame'], moods: ['frissons','reflexion'], synopsis: 'Un week-end chez la famille de sa compagne prend une tournure de plus en plus inquiétante.', pitch: 'Un thriller tendu qui donne matière à discuter après le générique.' },
+  { title: 'La La Land', year: 2016, duration: 128, genres: ['comedie','drame'], moods: ['detente','emotion'], synopsis: 'À Los Angeles, une actrice et un musicien poursuivent leurs rêves et tentent de faire une place à leur histoire.', pitch: 'Une parenthèse musicale, colorée et pleine d’émotion.' },
+  { title: 'Mad Max: Fury Road', year: 2015, duration: 120, genres: ['aventure','science-fiction','thriller'], moods: ['frissons','evasion'], synopsis: 'Dans un désert post-apocalyptique, une fuite spectaculaire devient une course pour la liberté.', pitch: 'De l’action presque sans pause et une mise en scène impressionnante.' },
+  { title: 'Ratatouille', year: 2007, duration: 111, genres: ['animation','comedie'], moods: ['detente','emotion'], synopsis: 'Un rat passionné de cuisine rêve de faire découvrir ses talents dans les cuisines parisiennes.', pitch: 'Un film chaleureux, drôle et délicieusement réconfortant.' },
+  { title: 'The Truman Show', year: 1998, duration: 103, genres: ['comedie','drame','science-fiction'], moods: ['reflexion','detente'], synopsis: 'Un homme commence à douter de la réalité parfaite dans laquelle il vit depuis toujours.', pitch: 'Une idée brillante, drôle et toujours aussi pertinente.' },
+  { title: 'Le Seigneur des anneaux : La Communauté de l’anneau', year: 2001, duration: 178, genres: ['aventure','drame'], moods: ['evasion','emotion'], synopsis: 'Un jeune Hobbit entreprend un voyage dangereux pour empêcher un anneau de tomber entre de mauvaises mains.', pitch: 'Une aventure épique idéale pour s’évader complètement.' },
+  { title: 'À couteaux tirés', year: 2019, duration: 130, genres: ['comedie','thriller'], moods: ['reflexion','detente'], synopsis: 'Après la mort d’un patriarche, un détective interroge une famille où chacun semble avoir quelque chose à cacher.', pitch: 'Une enquête pleine de surprises, parfaite pour jouer au détective.' },
+  { title: 'Dune', year: 2021, duration: 155, genres: ['science-fiction','aventure','drame'], moods: ['evasion','reflexion'], synopsis: 'Sur la planète désertique Arrakis, un jeune héritier se retrouve au cœur d’enjeux politiques et prophétiques.', pitch: 'Une fresque de science-fiction ample et immersive.' },
+  { title: 'Coco', year: 2017, duration: 105, genres: ['animation','aventure'], moods: ['emotion','detente'], synopsis: 'Un jeune passionné de musique traverse le monde des morts pour comprendre l’histoire de sa famille.', pitch: 'Une aventure colorée qui touche droit au cœur.' },
+  { title: 'Shutter Island', year: 2010, duration: 138, genres: ['thriller','drame'], moods: ['frissons','reflexion'], synopsis: 'Deux enquêteurs arrivent sur une île isolée pour élucider la disparition d’une patiente.', pitch: 'Une atmosphère troublante et un mystère à décortiquer.' },
+  { title: 'Le Château ambulant', year: 2004, duration: 119, genres: ['animation','aventure'], moods: ['evasion','emotion'], synopsis: 'Une jeune femme transformée par un sort trouve refuge dans le château magique d’un mystérieux magicien.', pitch: 'Une escapade poétique dans un monde plein de magie.' },
+  { title: 'Paddington 2', year: 2017, duration: 104, genres: ['comedie','aventure'], moods: ['detente','emotion'], synopsis: 'Le plus poli des ours veut offrir un cadeau spécial à sa tante, mais une mésaventure bouleverse ses plans.', pitch: 'Un film lumineux, drôle et incroyablement feel-good.' },
+  { title: 'Les Évadés', year: 1994, duration: 142, genres: ['drame'], moods: ['emotion','reflexion'], synopsis: 'Une amitié se construit au fil des années dans une prison où l’espoir devient une force essentielle.', pitch: 'Un récit puissant sur l’amitié, la patience et la liberté.' },
+  { title: 'Inception', year: 2010, duration: 148, genres: ['science-fiction','thriller','aventure'], moods: ['frissons','reflexion'], synopsis: 'Une équipe spécialisée s’introduit dans les rêves pour accomplir une mission hors du commun.', pitch: 'Un puzzle spectaculaire qui donne envie de revoir le film.' },
+  { title: 'Sans un bruit', year: 2018, duration: 90, genres: ['thriller','science-fiction'], moods: ['frissons'], synopsis: 'Une famille tente de survivre dans un monde où le moindre bruit peut attirer une menace.', pitch: 'Une expérience de tension très efficace à partager.' }
+];
+
+const CINEMA_QUIZ = [
+  { question: 'Quel réalisateur a signé Jurassic Park (1993) ?', answers: ['James Cameron','Steven Spielberg','Ridley Scott','Tim Burton'], correct: 1, explanation: 'Steven Spielberg a réalisé Jurassic Park, adapté du roman de Michael Crichton.' },
+  { question: 'Sur quelle planète se déroule l’essentiel de Dune ?', answers: ['Krypton','Tatooine','Arrakis','Pandora'], correct: 2, explanation: 'Arrakis, aussi appelée Dune, est la planète désertique au centre de l’histoire.' },
+  { question: 'Quel est le prénom du lionceau héros du Roi Lion ?', answers: ['Mufasa','Scar','Simba','Kovu'], correct: 2, explanation: 'Simba est le fils de Mufasa et le personnage principal du Roi Lion.' },
+  { question: 'Dans Matrix, quelle pilule Neo choisit-il pour découvrir la vérité ?', answers: ['La bleue','La rouge','La verte','La blanche'], correct: 1, explanation: 'Neo choisit la pilule rouge, qui lui permet de découvrir la réalité.' },
+  { question: 'Qui incarne Jack Sparrow dans Pirates des Caraïbes ?', answers: ['Orlando Bloom','Geoffrey Rush','Johnny Depp','Javier Bardem'], correct: 2, explanation: 'Johnny Depp interprète le capitaine Jack Sparrow.' },
+  { question: 'Comment s’appelle le robot héros de WALL-E ?', answers: ['EVE','AUTO','WALL-E','MO'], correct: 2, explanation: 'WALL-E est un robot compacteur de déchets qui travaille sur une Terre abandonnée.' },
+  { question: 'Dans quel univers trouve-t-on Poudlard ?', answers: ['Le Seigneur des anneaux','Harry Potter','Narnia','Percy Jackson'], correct: 1, explanation: 'Poudlard est l’école de sorcellerie de la saga Harry Potter.' },
+  { question: 'Quel est le nom du vaisseau de Han Solo ?', answers: ['X-Wing','Enterprise','Faucon Millenium','Nostromo'], correct: 2, explanation: 'Le Faucon Millenium est le célèbre vaisseau piloté par Han Solo et Chewbacca.' },
+  { question: 'Quel studio a créé Toy Story ?', answers: ['DreamWorks','Pixar','Ghibli','Illumination'], correct: 1, explanation: 'Toy Story est le premier long métrage entièrement réalisé en images de synthèse par Pixar.' },
+  { question: 'Dans Retour vers le futur, quel scientifique invente la machine à voyager dans le temps ?', answers: ['Doc Brown','Dr. Grant','Dr. Lecter','Dr. Strange'], correct: 0, explanation: 'Emmett “Doc” Brown construit la DeLorean qui permet de voyager dans le temps.' }
+];
+
+function handleCinemaComponent(interaction, res) {
+  const customId = interaction.data && interaction.data.custom_id || '';
+  if (customId.startsWith('cine_quiz_')) return handleCinemaQuiz(interaction, res);
+  return handleCinemaVote(interaction, res);
+}
+
+function handleCinemaQuiz(interaction, res) {
+  const match = /^cine_quiz_(\d+)_(\d+)_(\d+)$/.exec(interaction.data.custom_id || '');
+  if (!match) return res.status(200).json({ type: 4, data: { content: 'Cette question n’est plus disponible.', flags: EPHEMERAL } });
+  const question = CINEMA_QUIZ[Number(match[1])];
+  const selected = Number(match[2]);
+  const correct = Number(match[3]);
+  if (!question || selected < 0 || selected >= question.answers.length || correct !== question.correct) {
+    return res.status(200).json({ type: 4, data: { content: 'Réponse invalide. Relance /quiz-cinema pour une nouvelle question.', flags: EPHEMERAL } });
+  }
+  const won = selected === correct;
+  const buttons = question.answers.map((answer, index) => ({
+    type: 2,
+    style: index === correct ? 3 : index === selected ? 4 : 2,
+    custom_id: 'cine_quiz_done_' + index,
+    label: String.fromCharCode(65 + index) + ' · ' + answer.slice(0, 70),
+    disabled: true
+  }));
+  return res.status(200).json({
+    type: 7,
+    data: {
+      embeds: [{
+        title: won ? '🏆 Bonne réponse, cinéphile !' : '🎬 Bien tenté !',
+        description: (won ? 'Tu as vu juste !' : '**La bonne réponse était : ' + question.answers[correct] + '**') + '\n\n' + question.explanation,
+        color: won ? 0x57f287 : 0xed4245,
+        footer: { text: 'CinéBox • Continue à faire grandir ta culture cinéma' }
+      }],
+      components: [{ type: 1, components: buttons }]
+    }
+  });
+}
+
+function parisDateTimeToDate(date, time) {
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const tm = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!dm || !tm) return null;
+  const [year, month, day] = dm.slice(1).map(Number);
+  const hour = Number(tm[1]), minute = Number(tm[2]);
+  const nominal = Date.UTC(year, month - 1, day, hour, minute);
+  const check = new Date(nominal);
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day || hour > 23 || minute > 59) return null;
+  const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  let candidate = nominal;
+  for (let i = 0; i < 3; i++) {
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(candidate)).map(part => [part.type, part.value]));
+    const localAsUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+    candidate = nominal - (localAsUtc - candidate);
+  }
+  const resolved = Object.fromEntries(formatter.formatToParts(new Date(candidate)).map(part => [part.type, part.value]));
+  if (Number(resolved.year) !== year || Number(resolved.month) !== month || Number(resolved.day) !== day || Number(resolved.hour) !== hour || Number(resolved.minute) !== minute) return null;
+  return new Date(candidate);
 }
 
 function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {

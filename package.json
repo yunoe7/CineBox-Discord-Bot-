@@ -4,15 +4,16 @@
   "description": "Bot officiel du serveur Discord CinéBox",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node api/discord.js",
     "dev": "node --watch src/index.js",
-    "check": "node --check src/index.js && node --check src/setup.js"
+    "check": "node --check api/discord.js && node --check scripts/register-commands.js && node --check src/setup.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "discord.js": "^14.19.3",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "discord-interactions": "^4.3.0"
   }
 }

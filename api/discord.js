@@ -179,19 +179,34 @@ async function setupGuild(guildId) {
 
 async function discord(path, options) {
   options = options || {};
-  const response = await fetch(API + path, {
-    method: options.method || 'GET',
-    headers: Object.assign({ Authorization: 'Bot ' + process.env.DISCORD_TOKEN }, options.body ? { 'Content-Type': 'application/json' } : {}),
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-  if (response.status === 429) {
-    const data = await response.json();
-    await new Promise(resolve => setTimeout(resolve, Math.ceil((data.retry_after || 1) * 1000)));
-    return discord(path, options);
+  const method = options.method || 'GET';
+  const maxAttempts = method === 'GET' || method === 'PATCH' ? 4 : 2;
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(API + path, {
+        method,
+        headers: Object.assign({ Authorization: 'Bot ' + process.env.DISCORD_TOKEN }, options.body ? { 'Content-Type': 'application/json' } : {}),
+        body: options.body ? JSON.stringify(options.body) : undefined,
+        signal: AbortSignal.timeout(12000)
+      });
+      if (response.status === 429) {
+        const data = await response.json();
+        await new Promise(resolve => setTimeout(resolve, Math.ceil((data.retry_after || 1) * 1000)));
+        attempt--;
+        continue;
+      }
+      if (!response.ok) throw new Error('Discord API ' + response.status + ': ' + await response.text());
+      if (response.status === 204) return null;
+      return response.json();
+    } catch (error) {
+      lastError = error;
+      const transient = error instanceof TypeError || error.name === 'TimeoutError' || /UND_ERR_SOCKET|fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(error));
+      if (!transient || attempt === maxAttempts) throw error;
+      await new Promise(resolve => setTimeout(resolve, 400 * attempt));
+    }
   }
-  if (!response.ok) throw new Error('Discord API ' + response.status + ': ' + await response.text());
-  if (response.status === 204) return null;
-  return response.json();
+  throw lastError;
 }
 async function editOriginal(interaction, content) {
   const url = API + '/webhooks/' + interaction.application_id + '/' + interaction.token + '/messages/@original';

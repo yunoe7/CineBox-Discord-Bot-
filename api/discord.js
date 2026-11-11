@@ -459,6 +459,87 @@ function embedReply(res, embed) {
   return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [polished] } });
 }
 
+
+// Messages automatiques de bienvenue et de départ (service Gateway Railway).
+const CINEBOX_SITE = 'https://cinebox-a1h.pages.dev/';
+
+function buildWelcomePayload(member, welcomeChannelId, memberCount) {
+  const user = member.user || member;
+  const tag = user.global_name || user.username || 'nouveau cinéphile';
+  const count = Number(memberCount || 0);
+  return {
+    channel_id: welcomeChannelId,
+    content: '🍿 **Un nouveau cinéphile rejoint la salle !**',
+    embeds: [{
+      author: { name: 'CINÉBOX  /  BIENVENUE AU CLUB' },
+      title: '🎬 Bienvenue ' + tag + ' !',
+      description: 'Installe-toi confortablement, la séance va commencer.\n\nTu viens de rejoindre **CinéBox**, le club des passionnés de films et de séries. Présente-toi, échange tes découvertes et trouve ton prochain coup de cœur.\n\n🌐 [Découvrir le site CinéBox](' + CINEBOX_SITE + ')',
+      color: 0xd8b45a,
+      thumbnail: { url: user.displayAvatarURL ? user.displayAvatarURL({ extension: 'png', size: 256 }) : undefined },
+      fields: [
+        { name: '🍿 PREMIERS PAS', value: '👋 Présente-toi dans <#WELCOME_CHANNEL_ID>\n📜 Lis le règlement\n💬 Rejoins les discussions cinéma', inline: false },
+        { name: '🎟️ MEMBRE', value: count > 0 ? 'Tu es notre **' + count + (count === 1 ? 'er' : 'e') + ' cinéphile** !' : 'Bienvenue dans la communauté !', inline: true }
+      ],
+      footer: { text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' },
+      timestamp: new Date().toISOString()
+    }]
+  };
+}
+
+function buildGoodbyePayload(member, goodbyeChannelId, memberCount) {
+  const user = member.user || member;
+  const tag = user.global_name || user.username || 'Un cinéphile';
+  return {
+    channel_id: goodbyeChannelId,
+    content: '🌙 **Une place se libère dans notre salle…**',
+    embeds: [{
+      author: { name: 'CINÉBOX  /  À BIENTÔT' },
+      title: '🎞️ ' + tag + ' quitte le ciné-club',
+      description: 'Merci d’avoir partagé un bout de l’aventure **CinéBox** avec nous.\n\nLes portes du club te resteront toujours ouvertes. À une prochaine séance, et prends soin de toi ! 🍿\n\n🌐 [Retrouver CinéBox](' + CINEBOX_SITE + ')',
+      color: 0x64748b,
+      thumbnail: { url: user.displayAvatarURL ? user.displayAvatarURL({ extension: 'png', size: 256 }) : undefined },
+      fields: [{ name: '👥 LA COMMUNAUTÉ', value: Number(memberCount || 0) > 0 ? 'Il reste **' + memberCount + ' membres** dans le club.' : 'La séance continue pour la communauté.', inline: true }],
+      footer: { text: 'CINÉBOX  •  MERCI POUR TON PASSAGE  •  🍿' },
+      timestamp: new Date().toISOString()
+    }]
+  };
+}
+
+// À appeler depuis le client Discord.js Gateway :
+// client.on('guildMemberAdd', async member => { ... })
+// client.on('guildMemberRemove', async member => { ... })
+// Les identifiants de salons et le rôle sont configurables par variables d'environnement.
+async function handleCineboxMemberJoin(member) {
+  const guild = member.guild;
+  const welcomeChannel = process.env.WELCOME_CHANNEL_ID;
+  const roleId = process.env.NEW_MEMBER_ROLE_ID;
+  if (roleId) {
+    try { await member.roles.add(roleId, 'Bienvenue dans le club CinéBox'); }
+    catch (error) { console.error('WELCOME_ROLE_FAILED', error); }
+  }
+  if (!welcomeChannel) return;
+  const channel = guild.channels.cache.get(welcomeChannel);
+  if (!channel || !channel.isTextBased()) return;
+  const payload = buildWelcomePayload(member, welcomeChannel, guild.memberCount);
+  const embed = payload.embeds[0];
+  embed.description = embed.description.replace('<#WELCOME_CHANNEL_ID>', process.env.INTRO_CHANNEL_ID ? '<#' + process.env.INTRO_CHANNEL_ID + '>' : 'le salon de présentation')
+    .replace('Lis le règlement', process.env.RULES_CHANNEL_ID ? 'Lis le règlement dans <#' + process.env.RULES_CHANNEL_ID + '>' : 'Lis le règlement du serveur');
+  delete embed.thumbnail?.url;
+  if (member.user.displayAvatarURL) embed.thumbnail = { url: member.user.displayAvatarURL({ extension: 'png', size: 256 }) };
+  await channel.send({ content: payload.content, embeds: [embed] });
+}
+
+async function handleCineboxMemberLeave(member) {
+  const goodbyeChannel = process.env.GOODBYE_CHANNEL_ID || process.env.WELCOME_CHANNEL_ID;
+  if (!goodbyeChannel) return;
+  const channel = member.guild.channels.cache.get(goodbyeChannel);
+  if (!channel || !channel.isTextBased()) return;
+  const payload = buildGoodbyePayload(member, goodbyeChannel, member.guild.memberCount);
+  const embed = payload.embeds[0];
+  if (member.user.displayAvatarURL) embed.thumbnail = { url: member.user.displayAvatarURL({ extension: 'png', size: 256 }) };
+  await channel.send({ content: payload.content, embeds: [embed] });
+}
+
 async function setupGuild(guildId, onProgress) {
   const defs = [
     { name: '👑 Fondateur', color: 0xf1c75b, hoist: true },
@@ -630,3 +711,6 @@ async function readRawBody(req) {
 }
 
 module.exports.config = { api: { bodyParser: false } };
+
+module.exports.handleCineboxMemberJoin = handleCineboxMemberJoin;
+module.exports.handleCineboxMemberLeave = handleCineboxMemberLeave;

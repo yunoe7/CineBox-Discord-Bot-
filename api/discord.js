@@ -98,25 +98,12 @@ module.exports = async function handler(req, res) {
 
   if (name === 'quiz-cinema') {
     const questionIndex = Math.floor(Math.random() * CINEMA_QUIZ.length);
-    const question = CINEMA_QUIZ[questionIndex];
-    const components = [{ type: 1, components: question.answers.map((answer, index) => ({
-      type: 2, style: 1,
-      custom_id: 'cine_quiz_' + questionIndex + '_' + index + '_' + question.correct,
-      label: String.fromCharCode(65 + index) + ' · ' + answer.slice(0, 70)
-    })) }];
     return res.status(200).json({
       type: 4,
       data: {
         flags: EPHEMERAL,
-        embeds: [{
-          author: { name: 'CINÉBOX  /  LE QUIZ DU CLUB' },
-          title: '🎬 Question de culture cinéma',
-          description: '**' + question.question + '**\n\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
-          color: 0xd8b45a,
-          footer: { text: 'CINÉBOX  •  1 QUESTION, 4 RÉPONSES  •  🍿' },
-          timestamp: new Date().toISOString()
-        }],
-        components
+        embeds: [buildQuizQuestionEmbed(questionIndex)],
+        components: [buildQuizQuestionButtons(questionIndex)]
       }
     });
   }
@@ -522,10 +509,42 @@ async function handleCineboxReset(interaction, res) {
   })();
   waitUntil(task);
 }
+function buildQuizQuestionEmbed(questionIndex) {
+  const question = CINEMA_QUIZ[questionIndex];
+  return {
+    author: { name: 'CINÉBOX  /  LE QUIZ DU CLUB' },
+    title: '🎬 Question de culture cinéma',
+    description: '**' + question.question + '**\\n\\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
+    color: 0xd8b45a,
+    footer: { text: 'CINÉBOX  •  QUIZ CINÉMA  •  QUESTION_' + questionIndex + '  •  🍿' },
+    timestamp: new Date().toISOString()
+  };
+}
+
+function buildQuizQuestionButtons(questionIndex) {
+  const question = CINEMA_QUIZ[questionIndex];
+  return {
+    type: 1,
+    components: question.answers.map((answer, index) => ({
+      type: 2, style: 1,
+      custom_id: 'cine_quiz_' + questionIndex + '_' + index + '_' + question.correct,
+      label: String.fromCharCode(65 + index) + ' · ' + answer.slice(0, 70)
+    }))
+  };
+}
+
 function handleCinemaQuiz(interaction, res) {
-  const match = /^cine_quiz_(\d+)_(\d+)_(\d+)$/.exec(interaction.data.custom_id || '');
+  const customId = interaction.data.custom_id || '';
+  if (customId === 'cine_quiz_next') {
+    let nextIndex = Math.floor(Math.random() * CINEMA_QUIZ.length);
+    const previousIndex = Number(interaction.message?.embeds?.[0]?.footer?.text?.match(/QUESTION_(\\d+)/)?.[1]);
+    if (CINEMA_QUIZ.length > 1 && nextIndex === previousIndex) nextIndex = (nextIndex + 1) % CINEMA_QUIZ.length;
+    return res.status(200).json({ type: 7, data: { embeds: [buildQuizQuestionEmbed(nextIndex)], components: [buildQuizQuestionButtons(nextIndex)] } });
+  }
+  const match = /^cine_quiz_(\\d+)_(\\d+)_(\\d+)$/.exec(customId);
   if (!match) return res.status(200).json({ type: 4, data: { content: 'Cette question n’est plus disponible.', flags: EPHEMERAL } });
-  const question = CINEMA_QUIZ[Number(match[1])];
+  const questionIndex = Number(match[1]);
+  const question = CINEMA_QUIZ[questionIndex];
   const selected = Number(match[2]);
   const correct = Number(match[3]);
   if (!question || selected < 0 || selected >= question.answers.length || correct !== question.correct) {
@@ -535,8 +554,8 @@ function handleCinemaQuiz(interaction, res) {
   const buttons = question.answers.map((answer, index) => ({
     type: 2,
     style: index === correct ? 3 : index === selected ? 4 : 2,
-    custom_id: 'cine_quiz_done_' + index,
-    label: String.fromCharCode(65 + index) + ' · ' + answer.slice(0, 70),
+    custom_id: 'cine_quiz_done_' + questionIndex + '_' + index,
+    label: String.fromCharCode(65 + index) + ' · ' + answer.slice(0, 65) + (index === selected ? ' · TON CHOIX' : index === correct ? ' · BONNE RÉPONSE' : ''),
     disabled: true
   }));
   return res.status(200).json({
@@ -545,12 +564,13 @@ function handleCinemaQuiz(interaction, res) {
       embeds: [{
         author: { name: 'CINÉBOX  /  RÉSULTAT DU QUIZ' },
         title: won ? '🏆 BRAVO, CINÉPHILE !' : '🎬 BIEN TENTÉ !',
-        description: (won ? 'Tu as vu juste !' : '**La bonne réponse était : ' + question.answers[correct] + '**') + '\n\n' + question.explanation,
+        description: (won ? '**Bonne réponse ! 1 / 1 point**' : '**Mauvaise réponse. 0 / 1 point**') + '\\n\\n**La bonne réponse :** ' + question.answers[correct] + '\\n\\n' + question.explanation,
         color: won ? 0x57f287 : 0xed4245,
-        footer: { text: 'CINÉBOX  •  CULTIVE TA PASSION DU CINÉMA  •  🍿' },
+        fields: [{ name: 'TON RÉSULTAT', value: won ? '🏆 1 / 1' : '🎬 0 / 1', inline: true }, { name: 'TA RÉPONSE', value: question.answers[selected], inline: true }],
+        footer: { text: 'CINÉBOX  •  RÉPONSE VALIDÉE  •  🍿' },
         timestamp: new Date().toISOString()
       }],
-      components: [{ type: 1, components: buttons }]
+      components: [{ type: 1, components: buttons }, { type: 1, components: [{ type: 2, style: 1, custom_id: 'cine_quiz_next', label: '🎲 Question suivante' }] }]
     }
   });
 }

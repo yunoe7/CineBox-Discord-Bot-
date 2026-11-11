@@ -75,8 +75,40 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  if (name === 'ping') return embedReply(res, { title: '🏓 CinéBox est en ligne !', description: 'Tout fonctionne correctement. La séance peut commencer !', color: 0x57f287, footer: { text: 'CinéBox • Statut du bot' }, timestamp: new Date().toISOString() });
-  if (name === 'help') return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '🎬 Le guide du CinéBox', description: 'Toutes les commandes pour faire vivre le club des cinéphiles.', color: 0xd8b45a, fields: [{ name: '🍿 EXPÉRIENCE CINÉMA', value: '`/sondage-cinema` — Faites voter la communauté pour son prochain film.\n`/tirage-cinema` — Laissez le hasard choisir la prochaine séance.' }, { name: '🧰 VIE DU SERVEUR', value: '`/signaler` — Faites remonter un problème à l’équipe.\n`/suggestion` — Proposez une amélioration.' }, { name: '⚙️ OUTILS', value: '`/ping` — Vérifiez que le bot est disponible.\n`/setup` — Installez ou réparez le serveur (administrateurs).' }], footer: { text: 'CinéBox • Le Club des Cinéphiles' }, timestamp: new Date().toISOString() }] } });
+  if (name === 'ping') {
+    const elapsed = interaction.created_timestamp ? Math.max(0, Date.now() - Number(interaction.created_timestamp)) : null;
+    return embedReply(res, {
+      title: '🎬 CINÉBOX • CONTRÔLE DE PROJECTION',
+      description: '## 🟢 Tout est prêt !\nLe bot est opérationnel et répond aux commandes.',
+      color: 0x57f287,
+      fields: [
+        { name: 'ÉTAT DU BOT', value: '🟢 **En ligne**', inline: true },
+        { name: 'TEMPS DE TRAITEMENT', value: elapsed === null ? 'Mesure indisponible' : '**' + elapsed + ' ms**', inline: true },
+        { name: 'PROCHAINE ÉTAPE', value: 'Choisis un film avec `/sondage-cinema` ou lance un tirage avec `/tirage-cinema`.' }
+      ],
+      footer: { text: 'CinéBox • Le club des cinéphiles' },
+      timestamp: new Date().toISOString()
+    });
+  }
+  if (name === 'help') return res.status(200).json({
+    type: 4,
+    data: {
+      flags: EPHEMERAL,
+      embeds: [{
+        author: { name: 'CINÉBOX  •  LE CLUB DES CINÉPHILES' },
+        title: '🎟️  TON PASS POUR LA PROCHAINE SÉANCE',
+        description: 'Retrouve ici les commandes essentielles pour faire vivre le serveur.\n*Choisis ta catégorie et lance ta commande directement dans Discord.*',
+        color: 0xd8b45a,
+        fields: [
+          { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote pour choisir le prochain film.\n\n`/tirage-cinema`\nConfie le choix de la séance au hasard.', inline: false },
+          { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour améliorer CinéBox.\n\n`/signaler`\nPréviens l’équipe en cas de problème.', inline: false },
+          { name: '🎬  EN COULISSES', value: '`/ping`\nVérifie que le bot est en ligne.\n\n`/setup`\nInstalle ou répare les salons et rôles *(administrateurs)*.', inline: false }
+        ],
+        footer: { text: 'CinéBox • Installe-toi, la séance va commencer 🍿' },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  });
 
   if (name === 'setup') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La configuration du serveur est réservée aux administrateurs.', color: 0xed4245, footer: { text: 'CinéBox • Permissions' } });

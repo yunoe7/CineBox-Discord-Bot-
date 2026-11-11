@@ -17,7 +17,7 @@ function getTextChannel(guild, id, fallbackName) {
     null;
 }
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log('CINEBOX_GATEWAY_READY ' + client.user.tag);
   client.user.setPresence({
     status: 'online',

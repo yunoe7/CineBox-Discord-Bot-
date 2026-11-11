@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
   const raw = await readRawBody(req);
   const sig = req.headers['x-signature-ed25519'];
   const ts = req.headers['x-signature-timestamp'];
-  if (!sig || !ts || !process.env.DISCORD_PUBLIC_KEY || !verifyKey(raw, sig, ts, process.env.DISCORD_PUBLIC_KEY))
+  if (!sig || !ts || !process.env.DISCORD_PUBLIC_KEY || !(await verifyKey(raw, sig, ts, process.env.DISCORD_PUBLIC_KEY)))
     return res.status(401).send('Invalid request signature');
   let interaction;
   try { interaction = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).send('Invalid JSON'); }

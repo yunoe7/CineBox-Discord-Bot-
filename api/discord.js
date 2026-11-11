@@ -173,11 +173,11 @@ module.exports = async function handler(req, res) {
           }
         });
         await editOriginal(interaction, { content: '', embeds: [{
-          author: { name: 'CINÉBOX • PROGRAMMATION' },
+          author: { name: 'CINÉBOX  /  PROGRAMMATION DES SÉANCES' },
           title: '🍿 La séance est officiellement programmée !',
           description: '**' + film + '**\n\n📅 <t:' + unixStart + ':F>\n⏳ <t:' + unixStart + ':R>\n🔊 <#' + channelId + '>\n\n[Voir l’événement Discord](https://discord.com/events/' + interaction.guild_id + '/' + event.id + ')',
           color: 0x57f287,
-          footer: { text: 'CinéBox • Bloque la date et prépare le pop-corn !' },
+          footer: { text: 'CINÉBOX  •  RENDEZ-VOUS AU CINÉ-CLUB  •  🍿' },
           timestamp: new Date().toISOString()
         }] });
       } catch (error) {
@@ -238,7 +238,8 @@ module.exports = async function handler(req, res) {
           const filled = Math.round(percent / 10);
           const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
           const progressEmbed = {
-            title: '🎬 Installation de CinéBox',
+            author: { name: 'CINÉBOX  /  CONFIGURATION DU CLUB' },
+            title: '🎬 INSTALLATION DE CINÉBOX',
             description: bar + ' **' + percent + '%**\n\n' + (state.label || 'Préparation en cours…'),
             color: 0xd8b45a,
             fields: [
@@ -246,7 +247,8 @@ module.exports = async function handler(req, res) {
               { name: 'Créés', value: String(state.created), inline: true },
               { name: 'Vérifiés', value: String(state.checked), inline: true }
             ],
-            footer: { text: 'CinéBox • Configuration du serveur' }
+            footer: { text: 'CINÉBOX  •  MISE EN PLACE DE VOTRE ESPACE  •  🍿' },
+            timestamp: new Date().toISOString()
           };
           console.log('SETUP_PROGRESS', JSON.stringify(state));
           // Never let a slow Discord webhook update block the actual setup work.
@@ -254,10 +256,13 @@ module.exports = async function handler(req, res) {
         });
         const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
         console.log('SETUP_SUCCESS', result);
-        await editOriginal(interaction, { content: '', embeds: [{ title: '✨ Votre serveur CinéBox est prêt !', description: 'La structure du club a été installée avec succès. Place à la communauté ! 🍿', color: 0x57f287, fields: [{ name: 'Éléments créés', value: String(result.created.length), inline: true }, { name: 'Rôles', value: String(result.roles), inline: true }, { name: 'Salons texte', value: String(result.textChannels), inline: true }, { name: 'Salons vocaux', value: String(result.voiceChannels), inline: true }, { name: 'Détails', value: details.slice(0, 1000) }], footer: { text: 'CinéBox • Installation terminée' }, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ author: { name: 'CINÉBOX  /  CONFIGURATION TERMINÉE' },
+          title: '✨ VOTRE SERVEUR EST PRÊT !', description: 'La structure du club a été installée avec succès. Place à la communauté ! 🍿', color: 0x57f287, fields: [{ name: 'Éléments créés', value: String(result.created.length), inline: true }, { name: 'Rôles', value: String(result.roles), inline: true }, { name: 'Salons texte', value: String(result.textChannels), inline: true }, { name: 'Salons vocaux', value: String(result.voiceChannels), inline: true }, { name: 'Détails', value: details.slice(0, 1000) }], footer: { text: 'CINÉBOX  •  BIENVENUE DANS LE CLUB  •  🍿' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('SETUP_FAILED', error && error.stack || error);
-        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Installation interrompue', description: 'CinéBox n’a pas pu terminer la configuration.\n\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'CinéBox • Assistance administrateur' } }] });
+        await editOriginal(interaction, { content: '', embeds: [{ author: { name: 'CINÉBOX  /  ASSISTANCE TECHNIQUE' },
+          title: '⚠️ INSTALLATION INTERROMPUE', description: 'CinéBox n’a pas pu terminer la configuration.\n\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'CINÉBOX  •  ASSISTANCE ADMINISTRATEUR' },
+          timestamp: new Date().toISOString() }] });
       }
     })();
     waitUntil(task);
@@ -395,10 +400,12 @@ function handleCinemaQuiz(interaction, res) {
     type: 7,
     data: {
       embeds: [{
-        title: won ? '🏆 Bonne réponse, cinéphile !' : '🎬 Bien tenté !',
+        author: { name: 'CINÉBOX  /  RÉSULTAT DU QUIZ' },
+        title: won ? '🏆 BRAVO, CINÉPHILE !' : '🎬 BIEN TENTÉ !',
         description: (won ? 'Tu as vu juste !' : '**La bonne réponse était : ' + question.answers[correct] + '**') + '\n\n' + question.explanation,
         color: won ? 0x57f287 : 0xed4245,
-        footer: { text: 'CinéBox • Continue à faire grandir ta culture cinéma' }
+        footer: { text: 'CINÉBOX  •  CULTIVE TA PASSION DU CINÉMA  •  🍿' },
+        timestamp: new Date().toISOString()
       }],
       components: [{ type: 1, components: buttons }]
     }

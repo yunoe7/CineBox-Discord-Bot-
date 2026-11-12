@@ -1087,6 +1087,16 @@ async function setupGuild(guildId, onProgress) {
   return { created, roles: defs.length, textChannels: Object.keys(textMap).length, voiceChannels: voiceNames.length };
 }
 
+function getLogStyle(title, fallbackColor = 0xd8b45a) {
+  const value = String(title || '').toLowerCase();
+  if (/anti-spam|anti-raid|suspect|sécurité|erreur|impossible|échec|failed/.test(value)) return { color: 0xed4245, category: 'SÉCURITÉ' };
+  if (/avertissement|timeout|expuls|banni|modération|sanction|clôtur/.test(value)) return { color: 0xe67e22, category: 'MODÉRATION' };
+  if (/membre|rejoint|quitt|bienvenue|départ/.test(value)) return { color: 0x3498db, category: 'COMMUNAUTÉ' };
+  if (/sondage|vote|cinéma|film|tirage/.test(value)) return { color: 0x9b59b6, category: 'CINÉMA' };
+  if (/démarr|connect|redémarr|en ligne/.test(value)) return { color: 0x2ecc71, category: 'SYSTÈME' };
+  return { color: fallbackColor, category: 'ACTIVITÉ' };
+}
+
 async function logBotEvent(guildId, title, detail, interaction) {
   try {
     const channels = await discord('/guilds/' + guildId + '/channels');
@@ -1094,6 +1104,7 @@ async function logBotEvent(guildId, title, detail, interaction) {
     if (!channel) return;
     const user = interaction?.member?.user || interaction?.user || {};
     const username = user.global_name || user.username || 'Utilisateur inconnu';
+    const style = getLogStyle(title);
     const cleanDetail = String(detail || 'Aucun détail supplémentaire.')
       .replace(/\r\n/g, '\n').replace(/\n/g, '\n').replace(/\r/g, '\n')
       .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
@@ -1101,8 +1112,9 @@ async function logBotEvent(guildId, title, detail, interaction) {
       author: { name: '🍿  CINÉBOX  •  JOURNAL DU BOT' },
       title: String(title || 'Événement du bot').slice(0, 240),
       description: cleanDetail || 'Aucun détail supplémentaire.',
-      color: 0xd8b45a,
+      color: style.color,
       fields: [
+        { name: '🏷️ Catégorie', value: style.category, inline: true },
         { name: '👤 Membre', value: (username + (user.id ? '\nID : ' + user.id : '')).slice(0, 1024), inline: true },
         { name: '📍 Salon', value: interaction?.channel_id ? '<#' + interaction.channel_id + '>' : 'Non disponible', inline: true },
         { name: '🛡️ Source', value: 'Action via commande CinéBox', inline: true }

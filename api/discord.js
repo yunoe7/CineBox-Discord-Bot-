@@ -60,7 +60,10 @@ module.exports = async function handler(req, res) {
 
         const fetchWarnings = async () => {
           const messages = await discord('/channels/' + logChannel.id + '/messages?limit=100');
-          return messages.filter(message => (message.content || '').includes('[CINEBOX_WARN:' + targetId + ']'));
+          return messages.filter(message => {
+            const content = message.content || '';
+            return content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
+          });
         };
 
         if (name === 'warnings') {
@@ -73,9 +76,9 @@ module.exports = async function handler(req, res) {
             ? active.slice(0, 15).map((message, index) => {
                 const embed = message.embeds?.[0] || {};
                 return '**' + (index + 1) + '.** ' + (embed.description || message.content).replace('[CINEBOX_WARN:' + targetId + ']', '').slice(0, 300);
-              }).join('\\n')
+              }).join('\n')
             : 'Aucun avertissement actif enregistré pour ce membre.';
-          await editOriginal(interaction, { content: '', embeds: [{ title: '📋 Avertissements de ' + (target.user?.username || targetId), description: '**Total actif :** ' + active.length + '\\n\\n' + description, color: 0xd8b45a, timestamp: new Date().toISOString() }] });
+          await editOriginal(interaction, { content: '', embeds: [{ title: '📋 Avertissements de ' + (target.user?.username || targetId), description: '**Total actif :** ' + active.length + '\n\n' + description, color: 0xd8b45a, timestamp: new Date().toISOString() }] });
           return;
         }
 

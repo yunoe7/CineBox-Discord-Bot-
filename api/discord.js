@@ -16,6 +16,15 @@ async function readCinemaPollStore() {
     throw error;
   }
 }
+async function getCinemaPollCounts(messageId, optionCount) {
+  const store = await readCinemaPollStore();
+  const votes = store[messageId] && typeof store[messageId] === 'object' ? store[messageId] : {};
+  const counts = Array.from({ length: optionCount }, () => 0);
+  for (const optionIndex of Object.values(votes)) {
+    if (Number.isInteger(optionIndex) && optionIndex >= 0 && optionIndex < optionCount) counts[optionIndex]++;
+  }
+  return counts;
+}
 async function writeCinemaPollStore(store) {
   await fs.mkdir(path.dirname(CINEMA_POLL_STORE), { recursive: true });
   const temporary = CINEMA_POLL_STORE + '.tmp';
@@ -69,9 +78,19 @@ module.exports = async function handler(req, res) {
         const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
         const channel = channels.find(item => item.name === '📋・logs-bot' && item.type === 0);
         if (!channel) throw new Error('Le salon 📋・logs-bot est introuvable.');
-        const messages = await discord('/channels/' + channel.id + '/messages?limit=100');
         const actionTitles = /avertissement officiel|mise en sourdine|fin de mise en sourdine|membre expulsé|membre banni/i;
-        const entries = messages.filter(message => (message.embeds || []).some(embed => actionTitles.test(embed.title || ''))).slice(0, 10);
+        const entries = [];
+        let before = null;
+        // Parcourt les pages jusqu'à trouver 10 actions ou atteindre le début de l'historique.
+        while (entries.length < 10) {
+          const query = '?limit=100' + (before ? '&before=' + before : '');
+          const page = await discord('/channels/' + channel.id + '/messages' + query);
+          if (!Array.isArray(page) || page.length === 0) break;
+          entries.push(...page.filter(message => (message.embeds || []).some(embed => actionTitles.test(embed.title || ''))));
+          if (page.length < 100) break;
+          before = page[page.length - 1].id;
+        }
+        entries.splice(10);
         const description = entries.length ? entries.map(message => {
           const embed = message.embeds.find(item => actionTitles.test(item.title || ''));
           const detail = String(embed.description || '')
@@ -79,7 +98,7 @@ module.exports = async function handler(req, res) {
             .replace(/\\r/g, '\n').replace(/\r\n?/g, '\n')
             .replace(/[ \t]+\n/g, '\n').trim().slice(0, 500);
           return '**' + (embed.title || 'Action de modération') + '**\n' + detail + '\n<t:' + Math.floor(new Date(message.timestamp).getTime() / 1000) + ':R>';
-        }).join('\n\n') : 'Aucune action de modération récente trouvée dans les 100 derniers messages.';
+        }).join('\n\n') : 'Aucune action de modération enregistrée dans l’historique consulté.';
         await editOriginal(interaction, { content: '', embeds: [{ title: '🛡️ Journal de modération — 10 dernières actions', description: description.slice(0, 3900), color: 0xd8b45a, footer: { text: 'CINÉBOX • LOGS DE MODÉRATION' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('CINEBOX_MODLOGS_FAILED', error?.stack || error);
@@ -220,11 +239,13 @@ module.exports = async function handler(req, res) {
           throw new Error('Ce sondage est déjà clôturé.');
         }
         const embed = JSON.parse(JSON.stringify(poll.embeds[0]));
+        const persistedCounts = await getCinemaPollCounts(poll.id, (embed.fields || []).length);
         const ranking = (embed.fields || []).map((field, index) => ({
           name: String(field.name).split('  /  ').slice(1).join('  /  ') || String(field.name),
-          count: Number.parseInt(String(field.value || '0').replace(/[^0-9]/g, ''), 10) || 0,
+          count: persistedCounts[index],
           index
         })).sort((x, y) => y.count - x.count || x.index - y.index);
+        embed.fields = embed.fields.map((field, index) => ({ ...field, value: '🎟️  **' + persistedCounts[index] + ' voix**' }));
         const total = ranking.reduce((sum, item) => sum + item.count, 0);
         const leaders = ranking.filter(item => item.count === ranking[0]?.count);
         const result = total === 0 ? 'Aucun vote n’a été enregistré.' :
@@ -470,14 +491,14 @@ module.exports = async function handler(req, res) {
     return embedReply(res, {
       author: { name: 'CINÉBOX  /  SYSTÈME DE PROJECTION' },
       title: '🎬 CONTRÔLE DE PROJECTION',
-      description: '## 🟢 Tout est prêt !\nLe bot est en ligne et répond aux interactions Discord.',
+      description: '## 🟢 Endpoint opérationnel\nCette commande confirme que l’API d’interactions répond. Les métriques ci-dessous concernent ce processus API, pas la connexion Gateway Railway.',
       color: 0x57f287,
       fields: [
         { name: 'ÉTAT DU BOT', value: '🟢 **En ligne**', inline: true },
-        { name: 'TEMPS DE TRAITEMENT', value: elapsed === null ? 'Mesure indisponible' : '**' + elapsed + ' ms**', inline: true },
-        { name: 'TEMPS EN LIGNE', value: days + ' j ' + hours + ' h ' + minutes + ' min', inline: true },
-        { name: 'MÉMOIRE RAM', value: mb(memory.rss), inline: true },
-        { name: 'TAS JAVASCRIPT', value: mb(memory.heapUsed) + ' / ' + mb(memory.heapTotal), inline: true },
+        { name: 'ÂGE DE L’INTERACTION', value: elapsed === null ? 'Mesure indisponible' : '**' + elapsed + ' ms**', inline: true },
+        { name: 'UPTIME DU PROCESSUS API', value: days + ' j ' + hours + ' h ' + minutes + ' min', inline: true },
+        { name: 'RAM DU PROCESSUS API', value: mb(memory.rss), inline: true },
+        { name: 'TAS JAVASCRIPT API', value: mb(memory.heapUsed) + ' / ' + mb(memory.heapTotal), inline: true },
         { name: 'NODE.JS', value: process.version, inline: true },
         { name: 'PROCHAINE ÉTAPE', value: 'Choisis un film avec `/sondage-cinema` ou lance un tirage avec `/tirage-cinema`.' }
       ],
@@ -495,6 +516,8 @@ module.exports = async function handler(req, res) {
         description: 'Bienvenue dans ton espace de contrôle CinéBox.\nExplore les outils du club, organise les soirées et partage ta passion du cinéma.\n\n*Une commande, et la séance commence.*',
         color: 0xd8b45a,
         fields: [
+          { name: '🛡️  MODÉRATION', value: '`/warn` · `/warnings` · `/clear-warnings`\nGère et consulte les avertissements.\n\n`/timeout` · `/untimeout` · `/kick` · `/ban`\nApplique les actions de modération selon tes permissions.\n\n`/modlogs`\nConsulte les dernières actions de modération.\n\n`/cloturer-sondage`\nFerme le sondage du salon.', inline: false },
+          { name: '⚙️  ADMINISTRATION', value: '`/config-accueil`\nConfigure les messages de bienvenue et de départ.\n\n`/reset-cinebox`\nRetire la structure CinéBox après confirmation *(administrateurs)*.', inline: false },
           { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote communautaire pour choisir le prochain film.\n\n`/tirage-cinema`\nLaisse le hasard décider entre plusieurs films.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste tes connaissances avec un quiz interactif.', inline: false },
           { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour faire évoluer le club.\n\n`/signaler`\nTransmets un bug ou un problème à l’équipe.', inline: false },
           { name: '🎬  ORGANISATION DU CLUB', value: '`/programmer-seance`\nCrée un événement officiel dans un salon vocal *(permission Créer des événements)*.\n\n`/ping`\nVérifie que CinéBox répond.\n\n`/setup`\nInstalle ou répare les salons et les rôles *(administrateurs)*.', inline: false }
@@ -617,13 +640,17 @@ async function handleCinemaVote(interaction, res) {
   if (!recorded) {
     return res.status(200).json({ type: 4, data: { content: '🍿 Tu as déjà voté dans ce sondage. Un seul vote par membre !', flags: EPHEMERAL } });
   }
-  const current = Number.parseInt(String(fields[index].value || '0').replace(/[^0-9]/g, ''), 10) || 0;
-  const nextCount = current + 1;
-  fields[index].value = '🎟️  **' + nextCount + (nextCount > 1 ? ' voix**' : ' voix**');
+  let persistedCounts;
+  try { persistedCounts = await getCinemaPollCounts(messageId, fields.length); }
+  catch (error) {
+    console.error('CINEMA_POLL_STORE_READ_FAILED', error?.stack || error);
+    return res.status(200).json({ type: 4, data: { content: '⚠️ Les résultats ne sont pas accessibles pour le moment. Réessaie dans quelques instants.', flags: EPHEMERAL } });
+  }
+  fields.forEach((field, i) => { field.value = '🎟️  **' + persistedCounts[i] + ' voix**'; });
   embed.fields = fields;
   const ranking = fields.map((field, i) => ({
     name: String(field.name).split('  /  ').slice(1).join('  /  ') || String(field.name),
-    count: Number.parseInt(String(field.value || '0').replace(/[^0-9]/g, ''), 10) || 0,
+    count: persistedCounts[i],
     index: i
   })).sort((a, b) => b.count - a.count || a.index - b.index);
   embed.description = 'Un seul vote par membre. Merci de participer ! 🍿\n\n**🏆 Classement actuel**\n' +
@@ -712,7 +739,8 @@ async function handleCinemaComponent(interaction, res) {
   const recoMatch = /^cine_reco_again_(tous|aventure|animation|comedie|drame|science-fiction|thriller)_(detente|frissons|evasion|emotion|reflexion|surprise)$/.exec(customId);
   if (recoMatch) return res.status(200).json({ type: 7, data: { embeds: [buildRecommendationEmbed(recoMatch[1], recoMatch[2])], components: buildRecommendationComponents(recoMatch[1], recoMatch[2]) } });
   if (customId.startsWith('cine_quiz_')) return handleCinemaQuiz(interaction, res);
-  return handleCinemaVote(interaction, res);
+  if (customId.startsWith('cine_vote_')) return handleCinemaVote(interaction, res);
+  return res.status(200).json({ type: 4, data: { content: 'Cette interaction CinéBox n’est plus reconnue. Relance la commande concernée.', flags: EPHEMERAL } });
 }
 
 

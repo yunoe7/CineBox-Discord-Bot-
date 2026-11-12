@@ -8,6 +8,8 @@ if (!DISCORD_TOKEN || !CLIENT_ID) {
 
 const commands = [
 
+  new SlashCommandBuilder().setName('modlogs').setDescription('Consulte les 10 dernières actions de modération.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
   new SlashCommandBuilder().setName('warn').setDescription('Avertit un membre et consigne l’action dans les logs.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('membre').setDescription('Membre à avertir').setRequired(true))

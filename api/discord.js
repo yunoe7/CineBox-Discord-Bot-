@@ -84,28 +84,28 @@ module.exports = async function handler(req, res) {
 
         if (name === 'clear-warnings') {
           await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN_CLEAR:' + targetId + '] Effacement effectué par <@' + interaction.member.user.id + '> — ' + reason } });
-          await logBotEvent(interaction.guild_id, '🧹 Avertissements effacés', '**Membre :** <@' + targetId + '>\\n**Modérateur :** <@' + interaction.member.user.id + '>\\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🧹 Avertissements effacés', '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, interaction);
           await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Historique réinitialisé', description: 'Les avertissements actifs de <@' + targetId + '> ont été effacés.', color: 0x57f287 }] });
           return;
         }
 
         if (name === 'warn') {
-          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN:' + targetId + ']', embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\\n**Modérateur :** <@' + interaction.member.user.id + '>\\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }] } });
+          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN:' + targetId + ']', embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }] } });
         } else if (name === 'timeout') {
           if (!Number.isInteger(duration) || duration < 1 || duration > 40320) throw new Error('La durée doit être comprise entre 1 et 40 320 minutes (28 jours).');
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'PATCH', body: { communication_disabled_until: new Date(Date.now() + duration * 60000).toISOString() } });
-          await logBotEvent(interaction.guild_id, '🔇 Mise en sourdine', '**Membre :** <@' + targetId + '>\\n**Durée :** ' + duration + ' minutes\\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🔇 Mise en sourdine', '**Membre :** <@' + targetId + '>\n**Durée :** ' + duration + ' minutes\n**Motif :** ' + reason, interaction);
         } else if (name === 'untimeout') {
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'PATCH', body: { communication_disabled_until: null } });
-          await logBotEvent(interaction.guild_id, '🔊 Fin de mise en sourdine', '**Membre :** <@' + targetId + '>\\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🔊 Fin de mise en sourdine', '**Membre :** <@' + targetId + '>\n**Motif :** ' + reason, interaction);
         } else if (name === 'kick') {
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'DELETE' });
-          await logBotEvent(interaction.guild_id, '👢 Membre expulsé', '**Membre :** ' + (target.user?.username || targetId) + '\\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '👢 Membre expulsé', '**Membre :** ' + (target.user?.username || targetId) + '\n**Motif :** ' + reason, interaction);
         } else if (name === 'ban') {
           await discord('/guilds/' + interaction.guild_id + '/bans/' + targetId, { method: 'PUT', body: { delete_message_seconds: 0, reason: ('CinéBox : ' + reason).slice(0, 480) } });
-          await logBotEvent(interaction.guild_id, '🔨 Membre banni', '**Membre :** ' + (target.user?.username || targetId) + '\\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🔨 Membre banni', '**Membre :** ' + (target.user?.username || targetId) + '\n**Motif :** ' + reason, interaction);
         }
-        await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Modération effectuée', description: 'Action : **/' + name + '**\\nMembre : <@' + targetId + '>\\nMotif : ' + reason, color: 0x57f287, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Modération effectuée', description: 'Action : **/' + name + '**\nMembre : <@' + targetId + '>\nMotif : ' + reason, color: 0x57f287, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('CINEBOX_MODERATION_FAILED', name, error?.stack || error);
         await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Modération impossible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
@@ -479,7 +479,7 @@ function handleCinemaVote(interaction, res) {
     index: i
   })).sort((a, b) => b.count - a.count || a.index - b.index);
   embed.description = 'Un seul vote par membre. Merci de participer ! 🍿\n\n**🏆 Classement actuel**\n' +
-    ranking.map((item, i) => (i + 1) + '. **' + item.name + '** — ' + item.count + (item.count > 1 ? ' voix' : ' voix')).join('\\n');
+    ranking.map((item, i) => (i + 1) + '. **' + item.name + '** — ' + item.count + (item.count > 1 ? ' voix' : ' voix')).join('\n');
   const components = [{ type: 1, components: fields.map((field, i) => ({
     type: 2,
     style: i === index ? 3 : 1,

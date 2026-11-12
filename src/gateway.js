@@ -44,12 +44,16 @@ client.once('clientReady', () => {
 });
 
 
-// Anti-spam souple : détection de rafales sans lire le contenu des messages.
+// Anti-spam souple : rafales, répétitions et liens potentiellement suspects.
 const antiSpamWindows = new Map();
 const antiSpamCooldowns = new Map();
+const repeatedContentWindows = new Map();
 const ANTISPAM_WINDOW_MS = 7000;
 const ANTISPAM_MAX_MESSAGES = 6;
 const ANTISPAM_COOLDOWN_MS = 15000;
+const REPEAT_WINDOW_MS = 15000;
+const REPEAT_MAX_MESSAGES = 3;
+const SUSPICIOUS_LINK_PATTERN = /(?:discord\.gg\/|discord(?:app)?\.com\/invite\/|bit\.ly\/|tinyurl\.com\/|t\.co\/|cutt\.ly\/)/i;
 
 client.on('messageCreate', async message => {
   if (!message.guild || !message.author || message.author.bot || message.webhookId) return;
@@ -64,51 +68,66 @@ client.on('messageCreate', async message => {
   timestamps.push(now);
   antiSpamWindows.set(key, timestamps);
 
-  // Évite une croissance illimitée des compteurs si de nombreux comptes passent.
-  if (antiSpamWindows.size > 5000) {
+  const normalized = String(message.content || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  let repeatedCount = 0;
+  if (normalized.length >= 4) {
+    const repeatKey = key + ':' + normalized.slice(0, 500);
+    const recent = (repeatedContentWindows.get(repeatKey) || []).filter(time => now - time <= REPEAT_WINDOW_MS);
+    recent.push(now);
+    repeatedContentWindows.set(repeatKey, recent);
+    repeatedCount = recent.length;
+  }
+
+  if (antiSpamWindows.size > 5000 || repeatedContentWindows.size > 5000) {
     for (const [entryKey, entryTimes] of antiSpamWindows) {
       if (!entryTimes.length || now - entryTimes[entryTimes.length - 1] > ANTISPAM_WINDOW_MS) {
         antiSpamWindows.delete(entryKey);
         antiSpamCooldowns.delete(entryKey);
       }
     }
+    for (const [entryKey, entryTimes] of repeatedContentWindows) {
+      if (!entryTimes.length || now - entryTimes[entryTimes.length - 1] > REPEAT_WINDOW_MS) repeatedContentWindows.delete(entryKey);
+    }
   }
 
-  if (timestamps.length <= ANTISPAM_MAX_MESSAGES) return;
+  const burstDetected = timestamps.length > ANTISPAM_MAX_MESSAGES;
+  const repeatDetected = repeatedCount >= REPEAT_MAX_MESSAGES;
+  const suspiciousLink = SUSPICIOUS_LINK_PATTERN.test(message.content || '');
+
+  // Les liens suspects ne sont pas supprimés automatiquement : ils sont signalés pour vérification humaine.
+  if (suspiciousLink) {
+    const linkAlertKey = 'link:' + key;
+    const lastLinkAlert = antiSpamCooldowns.get(linkAlertKey) || 0;
+    if (now - lastLinkAlert >= ANTISPAM_COOLDOWN_MS) {
+      antiSpamCooldowns.set(linkAlertKey, now);
+      void sendBotLog(message.guild, '🔎 Lien à vérifier', '**Membre :** <@' + message.author.id + '>\n' +
+        '**Salon :** <#' + message.channel.id + '>\n**Action :** signalement uniquement, aucun lien supprimé automatiquement.', 0xd8b45a);
+    }
+  }
+
+  if (!burstDetected && !repeatDetected) return;
   const lastAction = antiSpamCooldowns.get(key) || 0;
   if (now - lastAction < ANTISPAM_COOLDOWN_MS) return;
   antiSpamCooldowns.set(key, now);
 
   try {
     await message.delete();
+    const reason = repeatDetected
+      ? repeatedCount + ' messages identiques en 15 secondes'
+      : timestamps.length + ' messages en 7 secondes';
     console.warn('CINEBOX_ANTISPAM_MESSAGE_DELETED', {
-      guildId: message.guild.id,
-      userId: message.author.id,
-      channelId: message.channel.id,
-      messagesInWindow: timestamps.length
+      guildId: message.guild.id, userId: message.author.id, channelId: message.channel.id,
+      messagesInWindow: timestamps.length, repeatedCount
     });
-    void sendBotLog(
-      message.guild,
-      '🚨 Anti-spam : message supprimé',
-      '**Membre :** <@' + message.author.id + '>\n' +
-      '**Salon :** <#' + message.channel.id + '>\n' +
-      '**Détection :** ' + timestamps.length + ' messages en 7 secondes\n' +
-      '**Action :** dernier message supprimé, aucune sanction automatique.',
-      0xed4245
-    );
+    void sendBotLog(message.guild, '🚨 Anti-spam : message supprimé',
+      '**Membre :** <@' + message.author.id + '>\n**Salon :** <#' + message.channel.id + '>\n' +
+      '**Détection :** ' + reason + '\n**Action :** dernier message supprimé, aucune sanction automatique.', 0xed4245);
   } catch (error) {
     console.error('CINEBOX_ANTISPAM_DELETE_FAILED', {
-      guildId: message.guild.id,
-      userId: message.author.id,
-      channelId: message.channel.id,
-      error: error?.stack || error
+      guildId: message.guild.id, userId: message.author.id, channelId: message.channel.id, error: error?.stack || error
     });
-    void sendBotLog(
-      message.guild,
-      '⚠️ Anti-spam : suppression impossible',
-      'Détection pour <@' + message.author.id + '> dans <#' + message.channel.id + '>, mais Discord a refusé la suppression. Vérifie la permission **Gérer les messages** du bot.',
-      0xed4245
-    );
+    void sendBotLog(message.guild, '⚠️ Anti-spam : suppression impossible',
+      'Détection pour <@' + message.author.id + '> dans <#' + message.channel.id + '>, mais Discord a refusé la suppression. Vérifie la permission **Gérer les messages** du bot.', 0xed4245);
   }
 });
 

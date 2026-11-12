@@ -459,6 +459,31 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
   }
 
+  if (name === 'etat-bot') {
+    const uptimeSeconds = Math.floor(process.uptime());
+    const days = Math.floor(uptimeSeconds / 86400);
+    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const memory = process.memoryUsage();
+    const mb = value => (value / 1024 / 1024).toFixed(1) + ' Mo';
+    return embedReply(res, {
+      author: { name: 'CINÉBOX  /  CENTRE DE CONTRÔLE' },
+      title: '🩺 État technique du bot',
+      description: 'Le service répond actuellement aux interactions Discord.',
+      color: 0x57f287,
+      fields: [
+        { name: 'ÉTAT', value: '🟢 En ligne', inline: true },
+        { name: 'TEMPS DE FONCTIONNEMENT', value: days + ' j ' + hours + ' h ' + minutes + ' min', inline: true },
+        { name: 'MÉMOIRE UTILISÉE', value: mb(memory.rss) + ' (RAM totale du processus)', inline: true },
+        { name: 'TAS JAVASCRIPT', value: mb(memory.heapUsed) + ' / ' + mb(memory.heapTotal), inline: true },
+        { name: 'NODE.JS', value: process.version, inline: true },
+        { name: 'DIAGNOSTIC', value: 'Cette commande confirme que le serveur répond. Elle ne remplace pas un test complet des commandes et événements Discord.' }
+      ],
+      footer: { text: 'CINÉBOX • DIAGNOSTIC TECHNIQUE' },
+      timestamp: new Date().toISOString()
+    });
+  }
+
   if (name === 'ping') {
     const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;
     return embedReply(res, {

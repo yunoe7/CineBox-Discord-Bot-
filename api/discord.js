@@ -1,9 +1,31 @@
 const nacl = require('tweetnacl');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const waitUntil = task => { void task.catch(error => console.error('BACKGROUND_TASK_FAILED', error)); };
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
-// Votes conservés pendant la durée de vie du processus Railway.
-const cinemaPollVoters = new Map();
+// Votes persistés sur le volume Railway monté dans /data.
+const CINEMA_POLL_STORE = process.env.CINEMA_POLL_STORE || '/data/cinema-polls.json';
+let cinemaPollWriteQueue = Promise.resolve();
+async function readCinemaPollStore() {
+  try {
+    const parsed = JSON.parse(await fs.readFile(CINEMA_POLL_STORE, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw error;
+  }
+}
+function saveCinemaPollStore(store) {
+  const write = async () => {
+    await fs.mkdir(path.dirname(CINEMA_POLL_STORE), { recursive: true });
+    const temporary = CINEMA_POLL_STORE + '.tmp';
+    await fs.writeFile(temporary, JSON.stringify(store), { encoding: 'utf8', mode: 0o600 });
+    await fs.rename(temporary, CINEMA_POLL_STORE);
+  };
+  cinemaPollWriteQueue = cinemaPollWriteQueue.then(write, write);
+  return cinemaPollWriteQueue;
+}
 const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n, CREATE_EVENTS: 17592186044416n };
 
 module.exports = async function handler(req, res) {
@@ -473,7 +495,7 @@ module.exports = async function handler(req, res) {
   return reply(res, 'Commande inconnue.');
 };
 
-function handleCinemaVote(interaction, res) {
+async function handleCinemaVote(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
   const match = /^cine_vote_([0-9]+)$/.exec(customId);
   if (!match || !interaction.message || !interaction.message.embeds || !interaction.message.embeds[0]) {
@@ -487,13 +509,25 @@ function handleCinemaVote(interaction, res) {
   if (!Number.isInteger(index) || index < 0 || index >= fields.length || !userId || !messageId) {
     return res.status(200).json({ type: 4, data: { content: 'Option de vote invalide.', flags: EPHEMERAL } });
   }
-  let voters = cinemaPollVoters.get(messageId);
-  if (!voters) { voters = new Set(); cinemaPollVoters.set(messageId, voters); }
-  if (voters.has(userId)) {
+  let pollStore;
+  try {
+    pollStore = await readCinemaPollStore();
+  } catch (error) {
+    console.error('CINEMA_POLL_STORE_READ_FAILED', error?.stack || error);
+    return res.status(200).json({ type: 4, data: { content: '⚠️ Le stockage des votes est momentanément indisponible. Réessaie dans quelques instants.', flags: EPHEMERAL } });
+  }
+  const pollVotes = pollStore[messageId] && typeof pollStore[messageId] === 'object' ? pollStore[messageId] : {};
+  if (Object.prototype.hasOwnProperty.call(pollVotes, userId)) {
     return res.status(200).json({ type: 4, data: { content: '🍿 Tu as déjà voté dans ce sondage. Un seul vote par membre !', flags: EPHEMERAL } });
   }
-  // Marquer le membre avant de construire la réponse évite les doubles clics simultanés.
-  voters.add(userId);
+  pollVotes[userId] = index;
+  pollStore[messageId] = pollVotes;
+  try {
+    await saveCinemaPollStore(pollStore);
+  } catch (error) {
+    console.error('CINEMA_POLL_STORE_WRITE_FAILED', error?.stack || error);
+    return res.status(200).json({ type: 4, data: { content: '⚠️ Ton vote n’a pas pu être enregistré. Réessaie dans quelques instants.', flags: EPHEMERAL } });
+  }
   const current = Number.parseInt(String(fields[index].value || '0').replace(/[^0-9]/g, ''), 10) || 0;
   const nextCount = current + 1;
   fields[index].value = '🎟️  **' + nextCount + (nextCount > 1 ? ' voix**' : ' voix**');
@@ -582,7 +616,7 @@ function buildRecommendationComponents(genre, mood) {
   }] }];
 }
 
-function handleCinemaComponent(interaction, res) {
+async function handleCinemaComponent(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
   if (customId === 'cinebox_reset_cancel') return res.status(200).json({ type: 4, data: { content: 'Remise à zéro annulée. Aucun salon ni rôle n’a été supprimé.', flags: EPHEMERAL } });
   if (customId === 'cinebox_reset_confirm') return handleCineboxReset(interaction, res);

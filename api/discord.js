@@ -374,22 +374,22 @@ function handleCinemaVote(interaction, res) {
   }
   // Marquer le membre avant de construire la réponse évite les doubles clics simultanés.
   voters.add(userId);
-  const current = Number.parseInt(String(fields[index].value || '0').match(/\\d+/)?.[0] || '0', 10);
+  const current = Number.parseInt(String(fields[index].value || '0').replace(/[^0-9]/g, ''), 10) || 0;
   const nextCount = current + 1;
   fields[index].value = '🎟️  **' + nextCount + (nextCount > 1 ? ' voix**' : ' voix**');
   embed.fields = fields;
   const ranking = fields.map((field, i) => ({
-    name: String(field.name).replace(/^\\d+\\s*\\/\\s*/, ''),
-    count: Number.parseInt(String(field.value || '0').match(/\\d+/)?.[0] || '0', 10),
+    name: String(field.name).split('  /  ').slice(1).join('  /  ') || String(field.name),
+    count: Number.parseInt(String(field.value || '0').replace(/[^0-9]/g, ''), 10) || 0,
     index: i
   })).sort((a, b) => b.count - a.count || a.index - b.index);
-  embed.description = 'Un seul vote par membre. Merci de participer ! 🍿\\n\\n**🏆 Classement actuel**\\n' +
+  embed.description = 'Un seul vote par membre. Merci de participer ! 🍿\n\n**🏆 Classement actuel**\n' +
     ranking.map((item, i) => (i + 1) + '. **' + item.name + '** — ' + item.count + (item.count > 1 ? ' voix' : ' voix')).join('\\n');
   const components = [{ type: 1, components: fields.map((field, i) => ({
     type: 2,
     style: i === index ? 3 : 1,
     custom_id: 'cine_vote_' + i,
-    label: 'Voter · ' + String(field.name).replace(/^\\d+\\s*\\/\\s*/, '').slice(0, 65)
+    label: 'Voter · ' + (String(field.name).split('  /  ').slice(1).join('  /  ') || String(field.name)).slice(0, 65)
   })) }];
   console.log('CINEMA_VOTE', JSON.stringify({ guild: interaction.guild_id, message: messageId, option: index }));
   return res.status(200).json({ type: 7, data: { embeds: [embed], components } });

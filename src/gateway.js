@@ -17,10 +17,21 @@ function getTextChannel(guild, id, fallbackName) {
     null;
 }
 
+function getLogStyle(title, fallbackColor = 0xd8b45a) {
+  const value = String(title || '').toLowerCase();
+  if (/anti-spam|anti-raid|suspect|sécurité|erreur|impossible|échec|failed/.test(value)) return { color: 0xed4245, category: 'SÉCURITÉ' };
+  if (/avertissement|timeout|expuls|banni|modération|sanction|clôtur/.test(value)) return { color: 0xe67e22, category: 'MODÉRATION' };
+  if (/membre|rejoint|quitt|bienvenue|départ/.test(value)) return { color: 0x3498db, category: 'COMMUNAUTÉ' };
+  if (/sondage|vote|cinéma|film|tirage/.test(value)) return { color: 0x9b59b6, category: 'CINÉMA' };
+  if (/démarr|connect|redémarr|en ligne/.test(value)) return { color: 0x2ecc71, category: 'SYSTÈME' };
+  return { color: fallbackColor, category: 'ACTIVITÉ' };
+}
+
 async function sendBotLog(guild, title, description, color = 0xd8b45a) {
   try {
     const channel = guild.channels.cache.find(item => item.isTextBased() && item.name === '📋・logs-bot');
     if (!channel) return;
+    const style = getLogStyle(title, color);
     const detail = String(description || 'Aucun détail supplémentaire.')
       .replace(/\r\n/g, '\n').replace(/\n/g, '\n').replace(/\r/g, '\n')
       .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
@@ -29,8 +40,9 @@ async function sendBotLog(guild, title, description, color = 0xd8b45a) {
         author: { name: '🍿  CINÉBOX  •  JOURNAL DU BOT', icon_url: client.user.displayAvatarURL() },
         title: String(title || 'Événement du bot').slice(0, 240),
         description: detail || 'Aucun détail supplémentaire.',
-        color,
+        color: style.color,
         fields: [
+          { name: '🏷️ Catégorie', value: style.category, inline: true },
           { name: '📍 Serveur', value: String(guild.name || 'Serveur inconnu').slice(0, 100), inline: true },
           { name: '🧾 Type', value: 'Événement automatique', inline: true }
         ],

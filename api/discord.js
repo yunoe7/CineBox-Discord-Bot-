@@ -59,13 +59,25 @@ module.exports = async function handler(req, res) {
         if (!logChannel) throw new Error('Le salon 📋・logs-bot est introuvable.');
 
         const fetchWarnings = async () => {
-          const messages = await discord('/channels/' + logChannel.id + '/messages?limit=100');
-          return messages.filter(message => {
-            const marker = decodeHiddenMarker(message.content || '');
-            const content = message.content || '';
-            return marker.includes('[CINEBOX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')
-              || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
-          });
+          const matches = [];
+          let before = null;
+          // Parcourt tout l'historique du salon par pages de 100 messages.
+          while (true) {
+            const query = '?limit=100' + (before ? '&before=' + before : '');
+            const page = await discord('/channels/' + logChannel.id + '/messages' + query);
+            if (!Array.isArray(page) || page.length === 0) break;
+            for (const message of page) {
+              const marker = decodeHiddenMarker(message.content || '');
+              const content = message.content || '';
+              if (marker.includes('[CINEBOX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')
+                || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')) {
+                matches.push(message);
+              }
+            }
+            if (page.length < 100) break;
+            before = page[page.length - 1].id;
+          }
+          return matches;
         };
 
         if (name === 'warnings') {
@@ -292,7 +304,7 @@ module.exports = async function handler(req, res) {
         const prefix = 'CINEBOX_WELCOME_CONFIG:';
         let current = { welcomeEnabled: false, goodbyeEnabled: false, autoRoleEnabled: false, welcomeChannelId: null, goodbyeChannelId: null, newMemberRoleId: null };
         const topic = configChannel.topic || '';
-        const saved = topic.match(/CINEBOX_WELCOME_CONFIG:(\\{[^}]*\\})/);
+        const saved = topic.match(/CINEBOX_WELCOME_CONFIG:(\{[^}]*\})/);
         if (saved) { try { current = Object.assign(current, JSON.parse(saved[1])); } catch {} }
         const validateChannel = id => !id || channels.some(channel => channel.id === id && channel.type === 0);
         if (welcomeChannelId && !validateChannel(welcomeChannelId)) throw new Error('Le salon de bienvenue doit être un salon textuel de ce serveur.');
@@ -306,7 +318,7 @@ module.exports = async function handler(req, res) {
         if (autoRoleEnabled !== undefined) current.autoRoleEnabled = autoRoleEnabled;
         if (newMemberRoleId !== undefined) current.newMemberRoleId = newMemberRoleId;
         const encoded = prefix + JSON.stringify(current);
-        const otherTopic = topic.replace(/(?:^|\\s*)CINEBOX_WELCOME_CONFIG:\\{[^}]*\\}/, '').trim();
+        const otherTopic = topic.replace(/(?:^|\s*)CINEBOX_WELCOME_CONFIG:\{[^}]*\}/, '').trim();
         const nextTopic = [otherTopic, encoded].filter(Boolean).join(' ').slice(0, 1024);
         await discord('/channels/' + configChannel.id, { method: 'PATCH', body: { topic: nextTopic } });
         const channelLabel = id => id ? '<#' + id + '>' : 'Non configuré';

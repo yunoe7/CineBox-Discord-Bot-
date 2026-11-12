@@ -21,14 +21,24 @@ async function sendBotLog(guild, title, description, color = 0xd8b45a) {
   try {
     const channel = guild.channels.cache.find(item => item.isTextBased() && item.name === '📋・logs-bot');
     if (!channel) return;
-    await channel.send({ embeds: [{
-      author: { name: 'CINÉBOX  /  JOURNAL DU BOT' },
-      title,
-      description: String(description || 'Aucun détail').slice(0, 900),
-      color,
-      footer: { text: 'CINÉBOX  •  LOG AUTOMATIQUE' },
-      timestamp: new Date()
-    }] });
+    const detail = String(description || 'Aucun détail supplémentaire.')
+      .replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n')
+      .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
+    await channel.send({
+      embeds: [{
+        author: { name: '🍿  CINÉBOX  •  JOURNAL DU BOT', icon_url: client.user.displayAvatarURL() },
+        title: String(title || 'Événement du bot').slice(0, 240),
+        description: detail || 'Aucun détail supplémentaire.',
+        color,
+        fields: [
+          { name: '📍 Serveur', value: String(guild.name || 'Serveur inconnu').slice(0, 100), inline: true },
+          { name: '🧾 Type', value: 'Événement automatique', inline: true }
+        ],
+        footer: { text: 'CINÉBOX  •  JOURNAL SYSTÈME' },
+        timestamp: new Date().toISOString()
+      }],
+      allowedMentions: { parse: [], users: [], roles: [], repliedUser: false }
+    });
   } catch (error) {
     console.error('CINEBOX_BOT_LOG_SEND_FAILED', error?.stack || error);
   }

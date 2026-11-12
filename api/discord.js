@@ -26,8 +26,8 @@ module.exports = async function handler(req, res) {
   if (interaction.type !== 2) return res.status(400).send('Unsupported interaction');
 
   const name = interaction.data && interaction.data.name;
-  if (['warn','timeout','untimeout','kick','ban'].includes(name)) {
-    const permissionByCommand = { warn: 1099511627776n, timeout: 1099511627776n, untimeout: 1099511627776n, kick: 2n, ban: 4n };
+    if (['warn','warnings','clear-warnings','timeout','untimeout','kick','ban'].includes(name)) {
+    const permissionByCommand = { warn: 1099511627776n, warnings: 1099511627776n, 'clear-warnings': 1099511627776n, timeout: 1099511627776n, untimeout: 1099511627776n, kick: 2n, ban: 4n };
     if (!hasPermission(interaction.member?.permissions, permissionByCommand[name]) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
       return embedReply(res, { title: '🔒 Permission nécessaire', description: 'Tu ne disposes pas de la permission Discord requise pour cette action de modération.', color: 0xed4245 });
     }
@@ -36,36 +36,72 @@ module.exports = async function handler(req, res) {
     const targetId = get('membre');
     const reason = String(get('raison') || 'Aucune raison précisée').trim().slice(0, 450);
     const duration = Number(get('duree') || 10);
-    if (!targetId || targetId === interaction.member?.user?.id) return embedReply(res, { title: '⚠️ Action impossible', description: 'Choisis un autre membre que toi-même.', color: 0xed4245 });
+    if (!targetId || targetId === interaction.member?.user?.id && name !== 'warnings' && name !== 'clear-warnings')
+      return embedReply(res, { title: '⚠️ Action impossible', description: 'Choisis un autre membre que toi-même.', color: 0xed4245 });
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     waitUntil((async () => {
       try {
-        const [guildRoles, actor, target, botMember] = await Promise.all([
+        const [guildRoles, actor, target, botMember, channels] = await Promise.all([
           discord('/guilds/' + interaction.guild_id + '/roles'),
           discord('/guilds/' + interaction.guild_id + '/members/' + interaction.member.user.id),
           discord('/guilds/' + interaction.guild_id + '/members/' + targetId),
-          discord('/guilds/' + interaction.guild_id + '/members/@me')
+          discord('/guilds/' + interaction.guild_id + '/members/@me'),
+          discord('/guilds/' + interaction.guild_id + '/channels')
         ]);
         const highest = member => Math.max(0, ...(member.roles || []).map(id => Number(guildRoles.find(role => role.id === id)?.position || 0)));
         if (target.user?.id === interaction.application_id) throw new Error('Je ne peux pas appliquer cette action à moi-même.');
-        if (highest(target) >= highest(actor) || highest(target) >= highest(botMember)) throw new Error('Le membre ciblé possède un rôle égal ou supérieur au tien ou au mien.');
+        if (name !== 'warnings' && name !== 'clear-warnings' &&
+            (highest(target) >= highest(actor) || highest(target) >= highest(botMember)))
+          throw new Error('Le membre ciblé possède un rôle égal ou supérieur au tien ou au mien.');
+
+        const logChannel = channels.find(item => item.name === '📋・logs-bot' && item.type === 0);
+        if (!logChannel) throw new Error('Le salon 📋・logs-bot est introuvable.');
+
+        const fetchWarnings = async () => {
+          const messages = await discord('/channels/' + logChannel.id + '/messages?limit=100');
+          return messages.filter(message => (message.content || '').includes('[CINEBOX_WARN:' + targetId + ']'));
+        };
+
+        if (name === 'warnings') {
+          const messages = await fetchWarnings();
+          const entries = messages.filter(message => !(message.content || '').includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'));
+          const clearedAt = messages.filter(message => (message.content || '').includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'))
+            .reduce((max, message) => Math.max(max, Date.parse(message.timestamp) || 0), 0);
+          const active = entries.filter(message => (Date.parse(message.timestamp) || 0) > clearedAt);
+          const description = active.length
+            ? active.slice(0, 15).map((message, index) => {
+                const embed = message.embeds?.[0] || {};
+                return '**' + (index + 1) + '.** ' + (embed.description || message.content).replace('[CINEBOX_WARN:' + targetId + ']', '').slice(0, 300);
+              }).join('\\n')
+            : 'Aucun avertissement actif enregistré pour ce membre.';
+          await editOriginal(interaction, { content: '', embeds: [{ title: '📋 Avertissements de ' + (target.user?.username || targetId), description: '**Total actif :** ' + active.length + '\\n\\n' + description, color: 0xd8b45a, timestamp: new Date().toISOString() }] });
+          return;
+        }
+
+        if (name === 'clear-warnings') {
+          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN_CLEAR:' + targetId + '] Effacement effectué par <@' + interaction.member.user.id + '> — ' + reason } });
+          await logBotEvent(interaction.guild_id, '🧹 Avertissements effacés', '**Membre :** <@' + targetId + '>\\n**Modérateur :** <@' + interaction.member.user.id + '>\\n**Motif :** ' + reason, interaction);
+          await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Historique réinitialisé', description: 'Les avertissements actifs de <@' + targetId + '> ont été effacés.', color: 0x57f287 }] });
+          return;
+        }
+
         if (name === 'warn') {
-          await logBotEvent(interaction.guild_id, '⚠️ Avertissement', '**Membre :** <@' + targetId + '>\n**Motif :** ' + reason, interaction);
+          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN:' + targetId + ']', embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\\n**Modérateur :** <@' + interaction.member.user.id + '>\\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }] } });
         } else if (name === 'timeout') {
           if (!Number.isInteger(duration) || duration < 1 || duration > 40320) throw new Error('La durée doit être comprise entre 1 et 40 320 minutes (28 jours).');
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'PATCH', body: { communication_disabled_until: new Date(Date.now() + duration * 60000).toISOString() } });
-          await logBotEvent(interaction.guild_id, '🔇 Mise en sourdine', '**Membre :** <@' + targetId + '>\n**Durée :** ' + duration + ' minutes\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🔇 Mise en sourdine', '**Membre :** <@' + targetId + '>\\n**Durée :** ' + duration + ' minutes\\n**Motif :** ' + reason, interaction);
         } else if (name === 'untimeout') {
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'PATCH', body: { communication_disabled_until: null } });
-          await logBotEvent(interaction.guild_id, '🔊 Fin de mise en sourdine', '**Membre :** <@' + targetId + '>\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🔊 Fin de mise en sourdine', '**Membre :** <@' + targetId + '>\\n**Motif :** ' + reason, interaction);
         } else if (name === 'kick') {
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'DELETE' });
-          await logBotEvent(interaction.guild_id, '👢 Membre expulsé', '**Membre :** ' + (target.user?.username || targetId) + '\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '👢 Membre expulsé', '**Membre :** ' + (target.user?.username || targetId) + '\\n**Motif :** ' + reason, interaction);
         } else if (name === 'ban') {
           await discord('/guilds/' + interaction.guild_id + '/bans/' + targetId, { method: 'PUT', body: { delete_message_seconds: 0, reason: ('CinéBox : ' + reason).slice(0, 480) } });
-          await logBotEvent(interaction.guild_id, '🔨 Membre banni', '**Membre :** ' + (target.user?.username || targetId) + '\n**Motif :** ' + reason, interaction);
+          await logBotEvent(interaction.guild_id, '🔨 Membre banni', '**Membre :** ' + (target.user?.username || targetId) + '\\n**Motif :** ' + reason, interaction);
         }
-        await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Modération effectuée', description: 'Action : **/' + name + '**\nMembre : <@' + targetId + '>\nMotif : ' + reason, color: 0x57f287, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Modération effectuée', description: 'Action : **/' + name + '**\\nMembre : <@' + targetId + '>\\nMotif : ' + reason, color: 0x57f287, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('CINEBOX_MODERATION_FAILED', name, error?.stack || error);
         await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Modération impossible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
@@ -73,6 +109,7 @@ module.exports = async function handler(req, res) {
     })());
     return;
   }
+
 
   if (name === 'sondage-cinema') {
     if (!process.env.DISCORD_TOKEN || !interaction.channel_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Le sondage ne peut pas être publié dans ce contexte.', color: 0xed4245 });

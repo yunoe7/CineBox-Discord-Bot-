@@ -150,7 +150,56 @@ async function readWelcomeConfig(guild) {
   }
 }
 
+// Anti-raid souple : détecte les arrivées groupées et alerte les modérateurs sans bloquer les membres.
+const antiRaidWindows = new Map();
+const antiRaidAlertAt = new Map();
+const ANTIRAID_WINDOW_MS = 30000;
+const ANTIRAID_JOIN_THRESHOLD = 8;
+const ANTIRAID_ALERT_COOLDOWN_MS = 60000;
+
+function trackRaidJoin(member) {
+  const now = Date.now();
+  const guildId = member.guild.id;
+  const recent = (antiRaidWindows.get(guildId) || []).filter(time => now - time <= ANTIRAID_WINDOW_MS);
+  recent.push(now);
+  antiRaidWindows.set(guildId, recent);
+
+  if (antiRaidWindows.size > 1000) {
+    for (const [id, times] of antiRaidWindows) {
+      if (!times.length || now - times[times.length - 1] > ANTIRAID_WINDOW_MS) {
+        antiRaidWindows.delete(id);
+        antiRaidAlertAt.delete(id);
+      }
+    }
+  }
+
+  if (recent.length < ANTIRAID_JOIN_THRESHOLD) return;
+  const lastAlert = antiRaidAlertAt.get(guildId) || 0;
+  if (now - lastAlert < ANTIRAID_ALERT_COOLDOWN_MS) return;
+  antiRaidAlertAt.set(guildId, now);
+
+  const accountAgeDays = Math.floor((now - member.user.createdTimestamp) / 86400000);
+  console.warn('CINEBOX_ANTIRAID_BURST', {
+    guildId,
+    joinsInWindow: recent.length,
+    windowSeconds: ANTIRAID_WINDOW_MS / 1000,
+    latestMemberId: member.id,
+    latestAccountAgeDays: accountAgeDays
+  });
+  void sendBotLog(
+    member.guild,
+    '🚨 Alerte anti-raid : arrivées groupées',
+    '**Détection :** ' + recent.length + ' membres ont rejoint en 30 secondes.\\n' +
+    '**Dernier arrivant :** <@' + member.id + '>\\n' +
+    '**Âge de son compte :** ' + accountAgeDays + ' jour(s)\\n' +
+    '**Action :** alerte uniquement. Aucun membre n’est expulsé, banni ou bloqué automatiquement.\\n' +
+    '**Conseil :** vérifie les profils récents et préviens l’équipe de modération si nécessaire.',
+    0xed4245
+  );
+}
+
 client.on('guildMemberAdd', async member => {
+  trackRaidJoin(member);
   console.log('CINEBOX_MEMBER_JOIN ' + member.user.id);
   void sendBotLog(member.guild, '👋 Nouveau membre', '**' + (member.user.tag || member.user.username) + '** a rejoint le serveur.\nID : ' + member.id);
   try {

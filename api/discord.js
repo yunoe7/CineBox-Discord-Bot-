@@ -16,15 +16,25 @@ async function readCinemaPollStore() {
     throw error;
   }
 }
-function saveCinemaPollStore(store) {
-  const write = async () => {
-    await fs.mkdir(path.dirname(CINEMA_POLL_STORE), { recursive: true });
-    const temporary = CINEMA_POLL_STORE + '.tmp';
-    await fs.writeFile(temporary, JSON.stringify(store), { encoding: 'utf8', mode: 0o600 });
-    await fs.rename(temporary, CINEMA_POLL_STORE);
+async function writeCinemaPollStore(store) {
+  await fs.mkdir(path.dirname(CINEMA_POLL_STORE), { recursive: true });
+  const temporary = CINEMA_POLL_STORE + '.tmp';
+  await fs.writeFile(temporary, JSON.stringify(store), { encoding: 'utf8', mode: 0o600 });
+  await fs.rename(temporary, CINEMA_POLL_STORE);
+}
+function recordCinemaPollVote(messageId, userId, optionIndex) {
+  const operation = async () => {
+    const store = await readCinemaPollStore();
+    const votes = store[messageId] && typeof store[messageId] === 'object' ? store[messageId] : {};
+    if (Object.prototype.hasOwnProperty.call(votes, userId)) return false;
+    votes[userId] = optionIndex;
+    store[messageId] = votes;
+    await writeCinemaPollStore(store);
+    return true;
   };
-  cinemaPollWriteQueue = cinemaPollWriteQueue.then(write, write);
-  return cinemaPollWriteQueue;
+  const result = cinemaPollWriteQueue.then(operation, operation);
+  cinemaPollWriteQueue = result.then(() => undefined, () => undefined);
+  return result;
 }
 const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n, CREATE_EVENTS: 17592186044416n };
 
@@ -509,24 +519,15 @@ async function handleCinemaVote(interaction, res) {
   if (!Number.isInteger(index) || index < 0 || index >= fields.length || !userId || !messageId) {
     return res.status(200).json({ type: 4, data: { content: 'Option de vote invalide.', flags: EPHEMERAL } });
   }
-  let pollStore;
+  let recorded;
   try {
-    pollStore = await readCinemaPollStore();
-  } catch (error) {
-    console.error('CINEMA_POLL_STORE_READ_FAILED', error?.stack || error);
-    return res.status(200).json({ type: 4, data: { content: '⚠️ Le stockage des votes est momentanément indisponible. Réessaie dans quelques instants.', flags: EPHEMERAL } });
-  }
-  const pollVotes = pollStore[messageId] && typeof pollStore[messageId] === 'object' ? pollStore[messageId] : {};
-  if (Object.prototype.hasOwnProperty.call(pollVotes, userId)) {
-    return res.status(200).json({ type: 4, data: { content: '🍿 Tu as déjà voté dans ce sondage. Un seul vote par membre !', flags: EPHEMERAL } });
-  }
-  pollVotes[userId] = index;
-  pollStore[messageId] = pollVotes;
-  try {
-    await saveCinemaPollStore(pollStore);
+    recorded = await recordCinemaPollVote(messageId, userId, index);
   } catch (error) {
     console.error('CINEMA_POLL_STORE_WRITE_FAILED', error?.stack || error);
     return res.status(200).json({ type: 4, data: { content: '⚠️ Ton vote n’a pas pu être enregistré. Réessaie dans quelques instants.', flags: EPHEMERAL } });
+  }
+  if (!recorded) {
+    return res.status(200).json({ type: 4, data: { content: '🍿 Tu as déjà voté dans ce sondage. Un seul vote par membre !', flags: EPHEMERAL } });
   }
   const current = Number.parseInt(String(fields[index].value || '0').replace(/[^0-9]/g, ''), 10) || 0;
   const nextCount = current + 1;

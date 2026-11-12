@@ -90,9 +90,9 @@ client.on('messageCreate', async message => {
     void sendBotLog(
       message.guild,
       '🚨 Anti-spam : message supprimé',
-      '**Membre :** <@' + message.author.id + '>\\n' +
-      '**Salon :** <#' + message.channel.id + '>\\n' +
-      '**Détection :** ' + timestamps.length + ' messages en 7 secondes\\n' +
+      '**Membre :** <@' + message.author.id + '>\n' +
+      '**Salon :** <#' + message.channel.id + '>\n' +
+      '**Détection :** ' + timestamps.length + ' messages en 7 secondes\n' +
       '**Action :** dernier message supprimé, aucune sanction automatique.',
       0xed4245
     );
@@ -189,10 +189,10 @@ function trackRaidJoin(member) {
   void sendBotLog(
     member.guild,
     '🚨 Alerte anti-raid : arrivées groupées',
-    '**Détection :** ' + recent.length + ' membres ont rejoint en 30 secondes.\\n' +
-    '**Dernier arrivant :** <@' + member.id + '>\\n' +
-    '**Âge de son compte :** ' + accountAgeDays + ' jour(s)\\n' +
-    '**Action :** alerte uniquement. Aucun membre n’est expulsé, banni ou bloqué automatiquement.\\n' +
+    '**Détection :** ' + recent.length + ' membres ont rejoint en 30 secondes.\n' +
+    '**Dernier arrivant :** <@' + member.id + '>\n' +
+    '**Âge de son compte :** ' + accountAgeDays + ' jour(s)\n' +
+    '**Action :** alerte uniquement. Aucun membre n’est expulsé, banni ou bloqué automatiquement.\n' +
     '**Conseil :** vérifie les profils récents et préviens l’équipe de modération si nécessaire.',
     0xed4245
   );
@@ -258,7 +258,7 @@ client.on('guildMemberAdd', async member => {
   } catch (error) {
     console.error('CINEBOX_WELCOME_ERROR', member.id, error?.stack || error);
     void sendBotLog(member.guild, '⚠️ Échec du message de bienvenue',
-      'Impossible de publier le message pour <@' + member.id + '>. Vérifie les permissions du bot dans le salon de bienvenue.\\n' +
+      'Impossible de publier le message pour <@' + member.id + '>. Vérifie les permissions du bot dans le salon de bienvenue.\n' +
       String(error?.message || error).slice(0, 700), 0xed4245);
   }
 });
@@ -276,9 +276,9 @@ client.on('guildMemberRemove', async member => {
       .setAuthor({ name: 'CINÉBOX  /  À BIENTÔT' })
       .setTitle('🌙 Une place se libère dans la salle…')
       .setDescription(
-        '**' + member.user.username + '** quitte le club.\\n\\n' +
+        '**' + member.user.username + '** quitte le club.\n\n' +
         'Merci d’avoir partagé un bout de l’aventure CinéBox avec nous. ' +
-        'Les portes du ciné-club te resteront ouvertes. À une prochaine séance ! 🍿\\n\\n' +
+        'Les portes du ciné-club te resteront ouvertes. À une prochaine séance ! 🍿\n\n' +
         '🌐 [Retrouver CinéBox](' + SITE_URL + ')'
       )
       .setThumbnail(member.user.displayAvatarURL({ extension: 'png', size: 256 }))

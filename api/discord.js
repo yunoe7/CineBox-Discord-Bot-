@@ -2,6 +2,8 @@ const nacl = require('tweetnacl');
 const waitUntil = task => { void task.catch(error => console.error('BACKGROUND_TASK_FAILED', error)); };
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
+// Votes conservés pendant la durée de vie du processus Railway.
+const cinemaPollVoters = new Map();
 const PERM = { ADMIN: 8n, VIEW: '1024', SEND: '2048', MANAGE_MESSAGES: '8192', HISTORY: '65536', MANAGE_EVENTS: 8589934592n, CREATE_EVENTS: 17592186044416n };
 
 module.exports = async function handler(req, res) {
@@ -31,7 +33,7 @@ module.exports = async function handler(req, res) {
         const embed = {
           author: { name: 'CINÉBOX  /  LE CHOIX DE LA COMMUNAUTÉ' },
           title: '🍿 ' + title.slice(0, 240),
-          description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Chaque clic compte comme un vote : un vote unique par membre sera ajouté dans une prochaine version.*',
+          description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Un seul vote par membre. Le classement se met à jour après chaque participation.*',
           color: 0xd8b45a,
           fields: films.map((film, index) => ({ name: String(index + 1).padStart(2, '0') + '  /  ' + film.slice(0, 220), value: '🎟️  **0 voix**', inline: true })),
           footer: { text: 'CINÉBOX  •  VOTE COMMUNAUTAIRE  •  🍿' },
@@ -353,26 +355,43 @@ module.exports = async function handler(req, res) {
 
 function handleCinemaVote(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
-  const match = /^cine_vote_(\d+)$/.exec(customId);
+  const match = /^cine_vote_(\\d+)$/.exec(customId);
   if (!match || !interaction.message || !interaction.message.embeds || !interaction.message.embeds[0]) {
     return res.status(200).json({ type: 4, data: { content: 'Ce vote n’est plus disponible.', flags: EPHEMERAL } });
   }
   const index = Number(match[1]);
+  const messageId = interaction.message.id;
+  const userId = interaction.member?.user?.id || interaction.user?.id;
   const embed = JSON.parse(JSON.stringify(interaction.message.embeds[0]));
   const fields = embed.fields || [];
-  if (!Number.isInteger(index) || index < 0 || index >= fields.length) {
+  if (!Number.isInteger(index) || index < 0 || index >= fields.length || !userId || !messageId) {
     return res.status(200).json({ type: 4, data: { content: 'Option de vote invalide.', flags: EPHEMERAL } });
   }
-  const current = Number.parseInt(String(fields[index].value || '0').match(/\d+/)?.[0] || '0', 10);
-  fields[index].value = (current + 1) + ' voix';
+  let voters = cinemaPollVoters.get(messageId);
+  if (!voters) { voters = new Set(); cinemaPollVoters.set(messageId, voters); }
+  if (voters.has(userId)) {
+    return res.status(200).json({ type: 4, data: { content: '🍿 Tu as déjà voté dans ce sondage. Un seul vote par membre !', flags: EPHEMERAL } });
+  }
+  // Marquer le membre avant de construire la réponse évite les doubles clics simultanés.
+  voters.add(userId);
+  const current = Number.parseInt(String(fields[index].value || '0').match(/\\d+/)?.[0] || '0', 10);
+  const nextCount = current + 1;
+  fields[index].value = '🎟️  **' + nextCount + (nextCount > 1 ? ' voix**' : ' voix**');
   embed.fields = fields;
+  const ranking = fields.map((field, i) => ({
+    name: String(field.name).replace(/^\\d+\\s*\\/\\s*/, ''),
+    count: Number.parseInt(String(field.value || '0').match(/\\d+/)?.[0] || '0', 10),
+    index: i
+  })).sort((a, b) => b.count - a.count || a.index - b.index);
+  embed.description = 'Un seul vote par membre. Merci de participer ! 🍿\\n\\n**🏆 Classement actuel**\\n' +
+    ranking.map((item, i) => (i + 1) + '. **' + item.name + '** — ' + item.count + (item.count > 1 ? ' voix' : ' voix')).join('\\n');
   const components = [{ type: 1, components: fields.map((field, i) => ({
     type: 2,
     style: i === index ? 3 : 1,
     custom_id: 'cine_vote_' + i,
-    label: 'Voter · ' + String(field.name).slice(0, 65)
+    label: 'Voter · ' + String(field.name).replace(/^\\d+\\s*\\/\\s*/, '').slice(0, 65)
   })) }];
-  console.log('CINEMA_VOTE', JSON.stringify({ guild: interaction.guild_id, option: index }));
+  console.log('CINEMA_VOTE', JSON.stringify({ guild: interaction.guild_id, message: messageId, option: index }));
   return res.status(200).json({ type: 7, data: { embeds: [embed], components } });
 }
 

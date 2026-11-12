@@ -355,7 +355,7 @@ module.exports = async function handler(req, res) {
 
 function handleCinemaVote(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
-  const match = /^cine_vote_(\\d+)$/.exec(customId);
+  const match = /^cine_vote_([0-9]+)$/.exec(customId);
   if (!match || !interaction.message || !interaction.message.embeds || !interaction.message.embeds[0]) {
     return res.status(200).json({ type: 4, data: { content: 'Ce vote n’est plus disponible.', flags: EPHEMERAL } });
   }

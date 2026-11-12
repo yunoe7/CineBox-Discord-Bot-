@@ -22,7 +22,7 @@ async function sendBotLog(guild, title, description, color = 0xd8b45a) {
     const channel = guild.channels.cache.find(item => item.isTextBased() && item.name === '📋・logs-bot');
     if (!channel) return;
     const detail = String(description || 'Aucun détail supplémentaire.')
-      .replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n')
+      .replace(/\r\n/g, '\n').replace(/\n/g, '\n').replace(/\r/g, '\n')
       .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
     await channel.send({
       embeds: [{

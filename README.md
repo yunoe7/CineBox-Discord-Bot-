@@ -1,46 +1,90 @@
 # CinéBox Discord Bot
 
-Bot du serveur CinéBox, déployé en interactions HTTP Discord sur Vercel.
+Bot Discord du club CinéBox. Le projet combine une API d'interactions Discord et un service Gateway persistant.
 
 ## Architecture
 
-Discord envoie les commandes slash et les clics sur composants à `/api/discord`. Cette version fonctionne sans connexion Gateway persistante. Elle ne reçoit donc pas les messages ordinaires du serveur ni les événements de présence.
+- **API HTTP** : reçoit les commandes slash et les clics sur les composants via `/api/discord`.
+- **Gateway Railway** : gère les événements de membres et les protections déclenchées par les messages (anti-spam et anti-raid).
+- **Stockage des sondages** : les votes sont conservés dans un fichier JSON sur le volume Railway monté sur `/data`.
 
-## Variables d’environnement Vercel
+Les deux services sont complémentaires : l'API gère les interactions, tandis que le Gateway écoute les événements temps réel du serveur.
 
-- `DISCORD_PUBLIC_KEY` : clé publique de l’application Discord.
-- `DISCORD_TOKEN` : token du bot, à conserver uniquement comme secret Vercel.
-- `CLIENT_ID` : identifiant de l’application Discord.
-- `GUILD_ID` : identifiant du serveur pour l’enregistrement des commandes.
-- `REPORT_CHANNEL_ID` : salon de signalement (facultatif si le salon créé par `/setup` est utilisé).
-- `SUGGESTION_CHANNEL_ID` : salon de suggestions (facultatif si le salon créé par `/setup` est utilisé).\n\nPour le service Gateway sur Railway :\n- `WELCOME_CHANNEL_ID` : salon de bienvenue (facultatif, défaut `👋-bienvenue`).\n- `GOODBYE_CHANNEL_ID` : salon de départ (facultatif, défaut salon de bienvenue).\n- `NEW_MEMBER_ROLE_ID` : rôle attribué automatiquement (facultatif, défaut `🍿 Nouveau membre`).\n- `INTRO_CHANNEL_ID` et `RULES_CHANNEL_ID` : salons à mentionner dans le message (facultatifs).
+## Variables d'environnement
 
-Ne jamais publier de token dans GitHub ou dans une conversation. Si un token a été exposé, le réinitialiser dans le Developer Portal puis mettre à jour Vercel.
+### API d'interactions
+
+- `DISCORD_PUBLIC_KEY` : clé publique de l'application Discord.
+- `DISCORD_TOKEN` : token du bot, à conserver uniquement comme secret.
+- `CLIENT_ID` : identifiant de l'application Discord.
+- `GUILD_ID` : identifiant du serveur pour l'enregistrement des commandes.
+- `REPORT_CHANNEL_ID` : salon de signalement (facultatif).
+- `SUGGESTION_CHANNEL_ID` : salon de suggestions (facultatif).
+- `CINEMA_POLL_STORE` : chemin du fichier de votes (facultatif, défaut `/data/cinema-polls.json`).
+
+### Gateway Railway
+
+- `DISCORD_TOKEN` : token du bot.
+- `WELCOME_CHANNEL_ID` : salon de bienvenue (facultatif).
+- `GOODBYE_CHANNEL_ID` : salon de départ (facultatif, utilise le salon de bienvenue par défaut).
+- `NEW_MEMBER_ROLE_ID` : rôle à attribuer à l'arrivée (facultatif).
+- `INTRO_CHANNEL_ID` et `RULES_CHANNEL_ID` : salons à mentionner dans le message de bienvenue (facultatifs).
+
+Ne jamais publier de token dans GitHub ou dans une conversation. Si un token est exposé, le réinitialiser dans le Developer Portal Discord puis mettre à jour les secrets des services concernés.
 
 ## Commandes
 
 ### Cinéma
-- `/sondage-cinema` : publie un vote avec 2 à 4 films et des boutons.
+- `/sondage-cinema` : publie un vote avec 2 à 4 films. Un membre ne peut voter qu'une fois par sondage ; les votes sont sauvegardés sur le volume Railway.
+- `/cloturer-sondage` : ferme le sondage le plus récent du salon et publie le classement final.
 - `/tirage-cinema` : tire au sort un film parmi 2 à 4 propositions.
-- `/recommandation-cinema` : recommande un film selon le genre et l’ambiance.
-- `/quiz-cinema` : lance une question de culture cinéma avec quatre réponses interactives.
-- `/programmer-seance` : crée un événement Discord lié à un salon vocal, avec date et heure locales Europe/Paris. Nécessite la permission Créer des événements (ou Gérer les événements).
+- `/recommandation-cinema` : recommande un film selon le genre et l'ambiance.
+- `/quiz-cinema` : lance une question de culture cinéma interactive.
+- `/programmer-seance` : crée un événement Discord lié à un salon vocal, à une date et une heure Europe/Paris.
 
-### Communauté et administration
-- `/help` : guide des commandes.
-- `/ping` : vérifie que l’endpoint répond.
-- `/signaler` : transmet un signalement.
-- `/suggestion` : transmet une idée à l’équipe.
+### Communauté
+- `/signaler` : transmet un problème à l'équipe.
+- `/suggestion` : transmet une idée à l'équipe.
+- `/help` : affiche le guide des commandes.
+- `/ping` : vérifie que l'API répond et affiche les métriques de son propre processus.
+
+### Modération et administration
+- `/warn`, `/warnings`, `/clear-warnings` : gère les avertissements.
+- `/timeout`, `/untimeout`, `/kick`, `/ban` : actions de modération soumises aux permissions Discord et à la hiérarchie des rôles.
+- `/modlogs` : consulte les dernières actions consignées dans le salon de logs.
 - `/setup` : installe ou répare les rôles, catégories et salons (administrateurs).
+- `/config-accueil` : configure les notifications d'arrivée et de départ.
+- `/reset-cinebox` : retire la structure CinéBox après confirmation (administrateurs).
 
-## Déploiement et enregistrement des commandes
+## Déploiement
 
-Le projet est relié à Vercel et les commandes sont enregistrées pendant le build via `npm run register`. Les variables `DISCORD_TOKEN`, `CLIENT_ID` et `GUILD_ID` doivent être disponibles pour le build.
+### API
 
-L’endpoint d’interactions Discord doit pointer vers `https://TON-DOMAINE-VERCEL/api/discord`.
+Le projet doit être relié à Vercel. Les commandes sont enregistrées avec `npm run register`. Les variables `DISCORD_TOKEN`, `CLIENT_ID` et éventuellement `GUILD_ID` doivent être disponibles au moment de l'enregistrement.
 
-## Service Gateway Railway\n\nCréer un service Railway depuis ce dépôt et utiliser la commande `npm run start:gateway`. Ajouter `DISCORD_TOKEN` et, si souhaité, les identifiants de salons/rôle ci-dessus. Dans le Developer Portal Discord, activer l’intent privilégié **Server Members Intent**. Le bot doit disposer de Voir le salon, Envoyer des messages, Intégrer des liens et Gérer les rôles (avec son rôle placé au-dessus de `🍿 Nouveau membre`). Ce service écoute les arrivées et départs et attribue le rôle d’accueil. Les commandes slash et l’endpoint HTTP Vercel restent séparés.\n\n## Limites connues
+Dans le Developer Portal Discord, l'URL d'interactions doit pointer vers :
 
-- Les votes du sondage actuel comptent chaque clic. Ils ne garantissent pas encore un vote unique par membre.
-- Les recommandations utilisent un catalogue local intégré au code ; elles ne consultent pas encore une base de données externe.
-- Les fonctions automatiques déclenchées par les messages (XP, anti-spam en temps réel, accueil à l’arrivée) nécessitent un service Gateway persistant.
+```
+https://TON-DOMAINE-VERCEL/api/discord
+```
+
+### Gateway
+
+Créer un service Railway depuis ce dépôt et utiliser :
+
+```bash
+npm run start:gateway
+```
+
+Ajouter `DISCORD_TOKEN` et les identifiants de salons/rôle nécessaires. Activer l'intent privilégié **Server Members Intent** dans le Developer Portal Discord. Le bot doit avoir les permissions nécessaires pour consulter les salons, envoyer des messages et attribuer le rôle d'accueil ; son rôle doit être placé au-dessus du rôle attribué automatiquement.
+
+### Stockage des votes
+
+Le service qui exécute l'API doit avoir accès au stockage persistant attendu par `CINEMA_POLL_STORE`. Sur Railway, le volume est monté dans `/data`. Ne pas remplacer ce volume par un stockage éphémère si la conservation des votes est souhaitée.
+
+## Limites à connaître
+
+- Les compteurs et classements des sondages sont reconstruits depuis les votes persistés ; les anciens sondages créés avant l'activation de la persistance ne disposent pas de données de vote récupérables.
+- `/ping` mesure le processus API qui traite la commande ; il ne mesure pas directement l'uptime ni la latence du Gateway Railway.
+- Les recommandations utilisent un catalogue de films intégré au code et non une base externe.
+- Les événements de messages et de membres nécessitent que le service Gateway Railway soit démarré et connecté.

@@ -480,6 +480,77 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
   }
 
+  if (name === 'mon-compte') {
+    const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+    if (!discordUserId) return embedReply(res, {
+      title: '⚠️ Utilisateur introuvable',
+      description: 'Impossible de récupérer ton identifiant Discord pour cette interaction.',
+      color: 0xed4245
+    });
+
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    waitUntil((async () => {
+      try {
+        const secret = process.env.CINEBOX_API_SECRET;
+        if (!secret) throw new Error('La liaison au site n’est pas encore configurée sur le bot.');
+        const response = await fetch('https://cinebox-a1h.pages.dev/api/internal/discord/member', {
+          method: 'POST',
+          headers: {
+            authorization: 'Bearer ' + secret,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({ discordUserId }),
+          signal: AbortSignal.timeout(7000)
+        });
+        if (!response.ok) {
+          if (response.status === 401) throw new Error('La clé de liaison entre le bot et le site est invalide.');
+          throw new Error('Le service de comptes CinéBox est temporairement indisponible (HTTP ' + response.status + ').');
+        }
+        const result = await response.json();
+        if (!result.linked) {
+          await editOriginal(interaction, {
+            content: '',
+            embeds: [{
+              title: '🎟️ Aucun compte CinéBox associé',
+              description: 'Ton compte Discord fonctionne, mais il n’est pas encore associé à un compte CineBox. Connecte-toi au site avec Discord pour créer ton compte, ou utilise la fonction d’association depuis ton espace si tu as déjà un autre compte.',
+              color: 0xd8b45a,
+              footer: { text: 'CINÉBOX  •  COMPTE PERSONNEL' }
+            }]
+          });
+          return;
+        }
+        const account = result.account || {};
+        const roleLabels = { admin: 'Administrateur', moderator: 'Modérateur', user: 'Membre' };
+        await editOriginal(interaction, {
+          content: '',
+          embeds: [{
+            title: '🎬 Ton compte CineBox est associé',
+            description: 'Ton identité Discord est bien reliée à ton compte CineBox.',
+            color: 0x57f287,
+            fields: [
+              { name: '👤 Nom du compte', value: String(account.displayName || 'Membre CineBox').slice(0, 100), inline: true },
+              { name: '🎟️ Rôle CineBox', value: roleLabels[account.role] || 'Membre', inline: true },
+              { name: '🔗 Espace personnel', value: '[Ouvrir CineBox](https://cinebox-a1h.pages.dev/connexion)', inline: false }
+            ],
+            footer: { text: 'CINÉBOX  •  VÉRIFICATION PRIVÉE' },
+            timestamp: new Date().toISOString()
+          }]
+        });
+      } catch (error) {
+        console.error('CINEBOX_ACCOUNT_LOOKUP_FAILED', error?.stack || error);
+        await editOriginal(interaction, {
+          content: '',
+          embeds: [{
+            title: '⚠️ Vérification indisponible',
+            description: String(error?.message || 'Impossible de vérifier ton compte pour le moment.').slice(0, 900),
+            color: 0xed4245
+          }]
+        });
+      }
+    })());
+    return;
+  }
+
   if (name === 'ping') {
     const elapsed = interaction.id ? Math.max(0, Date.now() - Number((BigInt(interaction.id) >> 22n) + 1420070400000n)) : null;
     const uptimeSeconds = Math.floor(process.uptime());

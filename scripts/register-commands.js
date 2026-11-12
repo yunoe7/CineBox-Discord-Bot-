@@ -7,6 +7,28 @@ if (!DISCORD_TOKEN || !CLIENT_ID) {
 }
 
 const commands = [
+
+  new SlashCommandBuilder().setName('warn').setDescription('Avertit un membre et consigne l’action dans les logs.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre à avertir').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif de l’avertissement').setRequired(false).setMaxLength(450)),
+  new SlashCommandBuilder().setName('timeout').setDescription('Empêche temporairement un membre de participer.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre à mettre en sourdine').setRequired(true))
+    .addIntegerOption(o => o.setName('duree').setDescription('Durée en minutes (1 à 40 320)').setMinValue(1).setMaxValue(40320).setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif').setRequired(false).setMaxLength(450)),
+  new SlashCommandBuilder().setName('untimeout').setDescription('Retire la mise en sourdine d’un membre.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre à rétablir').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif').setRequired(false).setMaxLength(450)),
+  new SlashCommandBuilder().setName('kick').setDescription('Expulse un membre du serveur.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre à expulser').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif').setRequired(false).setMaxLength(450)),
+  new SlashCommandBuilder().setName('ban').setDescription('Bannit un membre du serveur.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre à bannir').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif').setRequired(false).setMaxLength(450)),
   new SlashCommandBuilder().setName('setup').setDescription('Installe ou répare la structure complète du serveur CinéBox.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('config-accueil').setDescription('Configure manuellement les messages de bienvenue et de départ.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)

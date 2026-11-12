@@ -1,14 +1,14 @@
 require('dotenv').config();
 const { createServer } = require('node:http');
 const interactionHandler = require('../api/discord');
-const { Client, GatewayIntentBits, EmbedBuilder, ActivityType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActivityType, PermissionsBitField } = require('discord.js');
 
 const { DISCORD_TOKEN } = process.env;
 if (!DISCORD_TOKEN) throw new Error('DISCORD_TOKEN est requis pour le service Gateway CinéBox.');
 
 const SITE_URL = 'https://cinebox-a1h.pages.dev/';
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages]
 });
 
 function getTextChannel(guild, id, fallbackName) {
@@ -41,6 +41,75 @@ client.once('clientReady', () => {
     status: 'online',
     activities: [{ name: 'CinéBox 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]
   });
+});
+
+
+// Anti-spam souple : détection de rafales sans lire le contenu des messages.
+const antiSpamWindows = new Map();
+const antiSpamCooldowns = new Map();
+const ANTISPAM_WINDOW_MS = 7000;
+const ANTISPAM_MAX_MESSAGES = 6;
+const ANTISPAM_COOLDOWN_MS = 15000;
+
+client.on('messageCreate', async message => {
+  if (!message.guild || !message.author || message.author.bot || message.webhookId) return;
+
+  const permissions = message.member?.permissions;
+  if (permissions?.has(PermissionsBitField.Flags.Administrator) ||
+      permissions?.has(PermissionsBitField.Flags.ManageMessages)) return;
+
+  const now = Date.now();
+  const key = message.guild.id + ':' + message.author.id;
+  const timestamps = (antiSpamWindows.get(key) || []).filter(time => now - time <= ANTISPAM_WINDOW_MS);
+  timestamps.push(now);
+  antiSpamWindows.set(key, timestamps);
+
+  // Évite une croissance illimitée des compteurs si de nombreux comptes passent.
+  if (antiSpamWindows.size > 5000) {
+    for (const [entryKey, entryTimes] of antiSpamWindows) {
+      if (!entryTimes.length || now - entryTimes[entryTimes.length - 1] > ANTISPAM_WINDOW_MS) {
+        antiSpamWindows.delete(entryKey);
+        antiSpamCooldowns.delete(entryKey);
+      }
+    }
+  }
+
+  if (timestamps.length <= ANTISPAM_MAX_MESSAGES) return;
+  const lastAction = antiSpamCooldowns.get(key) || 0;
+  if (now - lastAction < ANTISPAM_COOLDOWN_MS) return;
+  antiSpamCooldowns.set(key, now);
+
+  try {
+    await message.delete();
+    console.warn('CINEBOX_ANTISPAM_MESSAGE_DELETED', {
+      guildId: message.guild.id,
+      userId: message.author.id,
+      channelId: message.channel.id,
+      messagesInWindow: timestamps.length
+    });
+    void sendBotLog(
+      message.guild,
+      '🚨 Anti-spam : message supprimé',
+      '**Membre :** <@' + message.author.id + '>\\n' +
+      '**Salon :** <#' + message.channel.id + '>\\n' +
+      '**Détection :** ' + timestamps.length + ' messages en 7 secondes\\n' +
+      '**Action :** dernier message supprimé, aucune sanction automatique.',
+      0xed4245
+    );
+  } catch (error) {
+    console.error('CINEBOX_ANTISPAM_DELETE_FAILED', {
+      guildId: message.guild.id,
+      userId: message.author.id,
+      channelId: message.channel.id,
+      error: error?.stack || error
+    });
+    void sendBotLog(
+      message.guild,
+      '⚠️ Anti-spam : suppression impossible',
+      'Détection pour <@' + message.author.id + '> dans <#' + message.channel.id + '>, mais Discord a refusé la suppression. Vérifie la permission **Gérer les messages** du bot.',
+      0xed4245
+    );
+  }
 });
 
 async function readWelcomeConfig(guild) {

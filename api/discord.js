@@ -996,6 +996,7 @@ async function handleCineboxMemberLeave(member) {
 async function setupGuild(guildId, onProgress) {
   const defs = [
     { name: '👑 Fondateur', color: 0xf1c75b, hoist: true },
+    { name: '🔧 Administrateur', color: 0xe67e22, hoist: true },
     { name: '💎 VIP CinéBox', color: 0xd8b4fe, hoist: true },
     { name: '🛡️ Modérateur', color: 0x60a5fa, hoist: true },
     { name: '🎬 Cinéphile', color: 0xe5c76b, hoist: false },
@@ -1045,12 +1046,14 @@ async function setupGuild(guildId, onProgress) {
   const staff = [
     { id: guildId, type: 0, deny: PERM.VIEW },
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) },
+    { id: roleIds['🔧 Administrateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) },
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
   ];
   const vip = [
     { id: guildId, type: 0, deny: PERM.VIEW },
     { id: roleIds['💎 VIP CinéBox'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
+    { id: roleIds['🔧 Administrateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
   ];
   async function getOrCreate(name, type, parentId, extra) {

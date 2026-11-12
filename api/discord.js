@@ -172,6 +172,53 @@ module.exports = async function handler(req, res) {
   }
 
 
+  if (name === 'cloturer-sondage') {
+    if (!hasPermission(interaction.member?.permissions, 8192n) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
+      return embedReply(res, { title: '🔒 Permission nécessaire', description: 'La clôture d’un sondage nécessite la permission Gérer les messages.', color: 0xed4245 });
+    }
+    if (!interaction.guild_id || !interaction.channel_id) return embedReply(res, { title: '⚠️ Contexte invalide', description: 'Cette commande doit être utilisée dans le salon du sondage.', color: 0xed4245 });
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    waitUntil((async () => {
+      try {
+        const messages = await discord('/channels/' + interaction.channel_id + '/messages?limit=100');
+        const poll = messages.find(message => (message.embeds || []).some(embed =>
+          embed.footer?.text?.includes('VOTE COMMUNAUTAIRE') && embed.fields?.length >= 2
+        ));
+        if (!poll) throw new Error('Aucun sondage CinéBox actif trouvé dans les 100 derniers messages de ce salon.');
+        if (!(poll.components || []).some(row => (row.components || []).some(component => String(component.custom_id || '').startsWith('cine_vote_') && !component.disabled))) {
+          throw new Error('Ce sondage est déjà clôturé.');
+        }
+        const embed = JSON.parse(JSON.stringify(poll.embeds[0]));
+        const ranking = (embed.fields || []).map((field, index) => ({
+          name: String(field.name).split('  /  ').slice(1).join('  /  ') || String(field.name),
+          count: Number.parseInt(String(field.value || '0').replace(/[^0-9]/g, ''), 10) || 0,
+          index
+        })).sort((x, y) => y.count - x.count || x.index - y.index);
+        const total = ranking.reduce((sum, item) => sum + item.count, 0);
+        const leaders = ranking.filter(item => item.count === ranking[0]?.count);
+        const result = total === 0 ? 'Aucun vote n’a été enregistré.' :
+          leaders.length > 1 ? 'Égalité : ' + leaders.map(item => '**' + item.name + '**').join(', ') + ' (' + leaders[0].count + ' voix).' :
+          '🏆 **' + ranking[0].name + '** remporte le sondage avec **' + ranking[0].count + ' voix**.';
+        embed.description = '**🔒 Sondage clôturé**\n' + result + '\n\n**Total des votes :** ' + total + '\n\n' +
+          ranking.map((item, index) => (index + 1) + '. **' + item.name + '** — ' + item.count + (item.count > 1 ? ' voix' : ' voix')).join('\n');
+        embed.color = 0x57f287;
+        embed.footer = { text: 'CINÉBOX  •  SONDAGE CLÔTURÉ  •  🍿' };
+        const components = (poll.components || []).map(row => ({
+          ...row, components: (row.components || []).map(component => ({ ...component, disabled: true, style: 2 }))
+        }));
+        await discord('/channels/' + interaction.channel_id + '/messages/' + poll.id, {
+          method: 'PATCH', body: { embeds: [embed], components }
+        });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Sondage clôturé', description: 'Le sondage le plus récent de ce salon a été fermé et son résultat publié.', color: 0x57f287 }] });
+        await logBotEvent(interaction.guild_id, '🔒 Sondage cinéma clôturé', '**Salon :** <#' + interaction.channel_id + '>\n**Votes :** ' + total, interaction);
+      } catch (error) {
+        console.error('CINEMA_POLL_CLOSE_FAILED', error?.stack || error);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Clôture impossible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
+      }
+    })());
+    return;
+  }
+
   if (name === 'sondage-cinema') {
     if (!process.env.DISCORD_TOKEN || !interaction.channel_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Le sondage ne peut pas être publié dans ce contexte.', color: 0xed4245 });
     const opts = interaction.data.options || [];

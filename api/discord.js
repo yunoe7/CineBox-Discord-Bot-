@@ -16,6 +16,12 @@ module.exports = async function handler(req, res) {
   let interaction;
   try { interaction = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).send('Invalid JSON'); }
   if (interaction.type === 1) return res.status(200).json({ type: 1 });
+  if (interaction.guild_id) {
+    const eventName = interaction.type === 2 ? '/' + String(interaction.data?.name || 'commande-inconnue')
+      : interaction.type === 3 ? 'Bouton : ' + String(interaction.data?.custom_id || 'interaction-inconnue')
+      : 'Interaction type ' + interaction.type;
+    waitUntil(logBotEvent(interaction.guild_id, '🧭 Interaction reçue', eventName, interaction));
+  }
   if (interaction.type === 3) return handleCinemaComponent(interaction, res);
   if (interaction.type !== 2) return res.status(400).send('Unsupported interaction');
 
@@ -490,7 +496,7 @@ async function handleCineboxReset(interaction, res) {
       '💬•le-salon','🎞️•discussions-films','📺•discussions-séries','🍿•soirée-cinéma',
       '❤️•coups-de-cœur','🔎•que-regarder','🌟•espace-vip','🏆•membres-à-la-une',
       '🎁•surprises','🆘•besoin-daide','🐛•signaler-un-bug','💡•boîte-à-idées',
-      '🚀•nouveautés-à-venir','👑•direction','🛡️•modération','🧪•tests-cinébox',
+      '🚀•nouveautés-à-venir','👑•direction','🛡️•modération','📋・logs-bot','🧪•tests-cinébox',
       '📋•journal-équipe','🔊・Le Grand Salon','🔊・Séance privée','🔊・After Movie'
     ];
     const managedRoles = [
@@ -738,7 +744,7 @@ async function setupGuild(guildId, onProgress) {
     { name: '02 • LE FOYER DES CINÉPHILES', channels: [['💬•le-salon','Le salon général de la communauté.'],['🎞️•discussions-films','Parlons cinéma et dernières sorties.'],['📺•discussions-séries','Vos séries du moment et vos théories.'],['🍿•soirée-cinéma','Organisons les prochaines soirées cinéma.'],['❤️•coups-de-cœur','Vos pépites et coups de cœur.'],['🔎•que-regarder','Besoin d’une recommandation ? Demande ici.']] },
     { name: '03 • LE CLUB VIP', channels: [['🌟•espace-vip','Un espace réservé aux membres VIP et à l’équipe.'],['🏆•membres-à-la-une','Les membres et contributions à l’honneur.'],['🎁•surprises','Surprises et événements spéciaux.']] },
     { name: '04 • ASSISTANCE & AMÉLIORATIONS', channels: [['🆘•besoin-daide','Une question ? La communauté et l’équipe sont là.'],['🐛•signaler-un-bug','Utilise /signaler pour transmettre un problème.'],['💡•boîte-à-idées','Utilise /suggestion pour proposer une idée.'],['🚀•nouveautés-à-venir','Les nouveautés et améliorations à venir.']] },
-    { name: '05 • LES COULISSES (PRIVÉ)', private: true, channels: [['👑•direction','Espace privé de direction.'],['🛡️•modération','Coordination de la modération.'],['🧪•tests-cinébox','Tests internes du serveur et du site.'],['📋•journal-équipe','Suivi des actions de l’équipe.']] }
+    { name: '05 • LES COULISSES (PRIVÉ)', private: true, channels: [['👑•direction','Espace privé de direction.'],['🛡️•modération','Coordination de la modération.'],['📋・logs-bot','Journal automatique des commandes, interactions et événements CinéBox.'], ['🧪•tests-cinébox','Tests internes du serveur et du site.'],['📋•journal-équipe','Suivi des actions de l’équipe.']] }
   ];
   const voiceNames = ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊・After Movie'];
   const total = defs.length + groups.reduce((n, g) => n + 1 + g.channels.length, 0) + 1 + voiceNames.length + 2;
@@ -842,6 +848,28 @@ async function setupGuild(guildId, onProgress) {
   }
   await progress('Finalisation', 'Message de présentation', false);
   return { created, roles: defs.length, textChannels: Object.keys(textMap).length, voiceChannels: voiceNames.length };
+}
+
+async function logBotEvent(guildId, title, detail, interaction) {
+  try {
+    const channels = await discord('/guilds/' + guildId + '/channels');
+    const channel = channels.find(item => item.name === '📋・logs-bot' && item.type === 0);
+    if (!channel) return;
+    const user = interaction?.member?.user || interaction?.user || {};
+    const username = user.global_name || user.username || 'Utilisateur inconnu';
+    await discord('/channels/' + channel.id + '/messages', { method: 'POST', body: { embeds: [{
+      author: { name: 'CINÉBOX  /  JOURNAL DU BOT' },
+      title: String(title).slice(0, 250),
+      description: String(detail || 'Événement sans détail').slice(0, 900),
+      color: 0xd8b45a,
+      fields: [
+        { name: 'Membre', value: username + (user.id ? ' (ID : ' + user.id + ')' : ''), inline: true },
+        { name: 'Salon', value: interaction?.channel_id ? '<#' + interaction.channel_id + '>' : 'Non disponible', inline: true }
+      ],
+      footer: { text: 'CINÉBOX  •  LOG AUTOMATIQUE' },
+      timestamp: new Date().toISOString()
+    }] } });
+  } catch (error) { console.error('CINEBOX_BOT_LOG_FAILED', error?.stack || error); }
 }
 
 async function discord(path, options) {

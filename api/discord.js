@@ -206,9 +206,9 @@ module.exports = async function handler(req, res) {
           description: 'Les réglages sont enregistrés dans le salon privé de l’équipe. Rien ne sera publié tant que tu n’actives pas les options correspondantes.',
           color: 0xd8b45a,
           fields: [
-            { name: '👋 Bienvenue', value: (current.welcomeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\\nSalon : ' + channelLabel(current.welcomeChannelId), inline: true },
-            { name: '🌙 Départs', value: (current.goodbyeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\\nSalon : ' + channelLabel(current.goodbyeChannelId), inline: true },
-            { name: '🍿 Rôle automatique', value: (current.autoRoleEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\\nRôle : ' + (current.newMemberRoleId ? '<@&' + current.newMemberRoleId + '>' : 'Non configuré'), inline: true }
+            { name: '👋 Bienvenue', value: (current.welcomeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\nSalon : ' + channelLabel(current.welcomeChannelId), inline: true },
+            { name: '🌙 Départs', value: (current.goodbyeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\nSalon : ' + channelLabel(current.goodbyeChannelId), inline: true },
+            { name: '🍿 Rôle automatique', value: (current.autoRoleEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\nRôle : ' + (current.newMemberRoleId ? '<@&' + current.newMemberRoleId + '>' : 'Non configuré'), inline: true }
           ],
           footer: { text: 'CINÉBOX  •  CONFIGURATION ADMINISTRATEUR' },
           timestamp: new Date().toISOString()
@@ -353,7 +353,7 @@ module.exports = async function handler(req, res) {
 
 function handleCinemaVote(interaction, res) {
   const customId = interaction.data && interaction.data.custom_id || '';
-  const match = /^cine_vote_(\\d+)$/.exec(customId);
+  const match = /^cine_vote_(\d+)$/.exec(customId);
   if (!match || !interaction.message || !interaction.message.embeds || !interaction.message.embeds[0]) {
     return res.status(200).json({ type: 4, data: { content: 'Ce vote n’est plus disponible.', flags: EPHEMERAL } });
   }
@@ -363,7 +363,7 @@ function handleCinemaVote(interaction, res) {
   if (!Number.isInteger(index) || index < 0 || index >= fields.length) {
     return res.status(200).json({ type: 4, data: { content: 'Option de vote invalide.', flags: EPHEMERAL } });
   }
-  const current = Number.parseInt(String(fields[index].value || '0').match(/\\d+/)?.[0] || '0', 10);
+  const current = Number.parseInt(String(fields[index].value || '0').match(/\d+/)?.[0] || '0', 10);
   fields[index].value = (current + 1) + ' voix';
   embed.fields = fields;
   const components = [{ type: 1, components: fields.map((field, i) => ({
@@ -514,7 +514,7 @@ function buildQuizQuestionEmbed(questionIndex) {
   return {
     author: { name: 'CINÉBOX  /  LE QUIZ DU CLUB' },
     title: '🎬 Question de culture cinéma',
-    description: '**' + question.question + '**\\n\\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
+    description: '**' + question.question + '**\n\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
     color: 0xd8b45a,
     footer: { text: 'CINÉBOX  •  QUIZ CINÉMA  •  QUESTION_' + questionIndex + '  •  🍿' },
     timestamp: new Date().toISOString()
@@ -537,11 +537,11 @@ function handleCinemaQuiz(interaction, res) {
   const customId = interaction.data.custom_id || '';
   if (customId === 'cine_quiz_next') {
     let nextIndex = Math.floor(Math.random() * CINEMA_QUIZ.length);
-    const previousIndex = Number(interaction.message?.embeds?.[0]?.footer?.text?.match(/QUESTION_(\\d+)/)?.[1]);
+    const previousIndex = Number(interaction.message?.embeds?.[0]?.footer?.text?.match(/QUESTION_(\d+)/)?.[1]);
     if (CINEMA_QUIZ.length > 1 && nextIndex === previousIndex) nextIndex = (nextIndex + 1) % CINEMA_QUIZ.length;
     return res.status(200).json({ type: 7, data: { embeds: [buildQuizQuestionEmbed(nextIndex)], components: [buildQuizQuestionButtons(nextIndex)] } });
   }
-  const match = /^cine_quiz_(\\d+)_(\\d+)_(\\d+)$/.exec(customId);
+  const match = /^cine_quiz_(\d+)_(\d+)_(\d+)$/.exec(customId);
   if (!match) return res.status(200).json({ type: 4, data: { content: 'Cette question n’est plus disponible.', flags: EPHEMERAL } });
   const questionIndex = Number(match[1]);
   const question = CINEMA_QUIZ[questionIndex];
@@ -564,7 +564,7 @@ function handleCinemaQuiz(interaction, res) {
       embeds: [{
         author: { name: 'CINÉBOX  /  RÉSULTAT DU QUIZ' },
         title: won ? '🏆 BRAVO, CINÉPHILE !' : '🎬 BIEN TENTÉ !',
-        description: (won ? '**Bonne réponse ! 1 / 1 point**' : '**Mauvaise réponse. 0 / 1 point**') + '\\n\\n**La bonne réponse :** ' + question.answers[correct] + '\\n\\n' + question.explanation,
+        description: (won ? '**Bonne réponse ! 1 / 1 point**' : '**Mauvaise réponse. 0 / 1 point**') + '\n\n**La bonne réponse :** ' + question.answers[correct] + '\n\n' + question.explanation,
         color: won ? 0x57f287 : 0xed4245,
         fields: [{ name: 'TON RÉSULTAT', value: won ? '🏆 1 / 1' : '🎬 0 / 1', inline: true }, { name: 'TA RÉPONSE', value: question.answers[selected], inline: true }],
         footer: { text: 'CINÉBOX  •  RÉPONSE VALIDÉE  •  🍿' },

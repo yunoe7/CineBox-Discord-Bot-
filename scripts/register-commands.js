@@ -50,6 +50,8 @@ const commands = [
   new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes CinéBox.'),
   new SlashCommandBuilder().setName('signaler').setDescription('Signale un bug ou un problème à l’équipe.')
     .addStringOption(o => o.setName('message').setDescription('Décris le problème').setRequired(true).setMaxLength(1500)),
+  new SlashCommandBuilder().setName('cloturer-sondage').setDescription('Clôture le dernier sondage CinéBox de ce salon et affiche le résultat.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
   new SlashCommandBuilder().setName('sondage-cinema').setDescription('Lance un vote pour choisir le prochain film à regarder.')
     .addStringOption(o => o.setName('titre').setDescription('Question du sondage, par exemple : Film de vendredi ?').setRequired(true).setMaxLength(240))
     .addStringOption(o => o.setName('film1').setDescription('Premier film').setRequired(true).setMaxLength(100))

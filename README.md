@@ -6,7 +6,7 @@ Bot Discord du club CinéBox. Le projet combine une API d'interactions Discord e
 
 - **API HTTP** : reçoit les commandes slash et les clics sur les composants via `/api/discord`.
 - **Gateway Railway** : gère les événements de membres et les protections déclenchées par les messages (anti-spam et anti-raid).
-- **Stockage des sondages** : les votes sont conservés dans un fichier JSON sur le volume Railway monté sur `/data`.
+- **Stockage des sondages** : les votes sont conservés dans un fichier JSON sur le volume Railway monté sur `/data`. Pour que ce stockage soit utilisé, Discord doit envoyer les interactions au serveur Railway (et non à la fonction Vercel).
 
 Les deux services sont complémentaires : l'API gère les interactions, tandis que le Gateway écoute les événements temps réel du serveur.
 
@@ -60,13 +60,15 @@ Ne jamais publier de token dans GitHub ou dans une conversation. Si un token est
 
 ### API
 
-Le projet doit être relié à Vercel. Les commandes sont enregistrées avec `npm run register`. Les variables `DISCORD_TOKEN`, `CLIENT_ID` et éventuellement `GUILD_ID` doivent être disponibles au moment de l'enregistrement.
+Le service Railway exécute à la fois le Gateway Discord et le serveur HTTP d'interactions. Les commandes sont enregistrées avec `npm run register` au démarrage. Les variables `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, `CLIENT_ID` et éventuellement `GUILD_ID` doivent être configurées sur Railway.
 
-Dans le Developer Portal Discord, l'URL d'interactions doit pointer vers :
+Dans le Developer Portal Discord, règle **Interactions Endpoint URL** sur l'URL Railway suivante :
 
 ```
-https://TON-DOMAINE-VERCEL/api/discord
+https://cinebox-discord-bot-production.up.railway.app/interactions
 ```
+
+Cette URL est importante : elle dirige les clics de vote vers le même service Railway que celui qui possède le volume `/data`. L'endpoint Vercel `/api/discord` ne doit pas être utilisé pour les interactions tant que le stockage des votes repose sur ce volume.
 
 ### Gateway
 
@@ -80,7 +82,7 @@ Ajouter `DISCORD_TOKEN` et les identifiants de salons/rôle nécessaires. Active
 
 ### Stockage des votes
 
-Le service qui exécute l'API doit avoir accès au stockage persistant attendu par `CINEMA_POLL_STORE`. Sur Railway, le volume est monté dans `/data`. Ne pas remplacer ce volume par un stockage éphémère si la conservation des votes est souhaitée.
+Le serveur d'interactions Railway et le fichier de votes partagent le même service et le même volume persistant monté dans `/data`. Le chemin peut être personnalisé avec `CINEMA_POLL_STORE`. Vercel ne partage pas ce volume : ne configure pas l'endpoint Discord vers Vercel sans migrer auparavant les votes vers une base accessible depuis Vercel.
 
 ## Limites à connaître
 

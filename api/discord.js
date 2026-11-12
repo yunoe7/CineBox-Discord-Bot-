@@ -74,7 +74,10 @@ module.exports = async function handler(req, res) {
         const entries = messages.filter(message => (message.embeds || []).some(embed => actionTitles.test(embed.title || ''))).slice(0, 10);
         const description = entries.length ? entries.map(message => {
           const embed = message.embeds.find(item => actionTitles.test(item.title || ''));
-          const detail = String(embed.description || '').slice(0, 500);
+          const detail = String(embed.description || '')
+            .replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\n').replace(/\r\n?/g, '\n')
+            .replace(/[ \t]+\n/g, '\n').trim().slice(0, 500);
           return '**' + (embed.title || 'Action de modération') + '**\n' + detail + '\n<t:' + Math.floor(new Date(message.timestamp).getTime() / 1000) + ':R>';
         }).join('\n\n') : 'Aucune action de modération récente trouvée dans les 100 derniers messages.';
         await editOriginal(interaction, { content: '', embeds: [{ title: '🛡️ Journal de modération — 10 dernières actions', description: description.slice(0, 3900), color: 0xd8b45a, footer: { text: 'CINÉBOX • LOGS DE MODÉRATION' }, timestamp: new Date().toISOString() }] });
@@ -174,7 +177,7 @@ module.exports = async function handler(req, res) {
           await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: {
             content: encodeHiddenMarker('[CINEBOX_WARN:' + targetId + ']'),
             embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }],
-            allowed_mentions: { parse: [], users: [targetId, interaction.member.user.id] }
+            allowed_mentions: { parse: [], users: [] }
           } });
         } else if (name === 'timeout') {
           if (!Number.isInteger(duration) || duration < 1 || duration > 40320) throw new Error('La durée doit être comprise entre 1 et 40 320 minutes (28 jours).');
@@ -1084,7 +1087,7 @@ async function logBotEvent(guildId, title, detail, interaction) {
     await discord('/channels/' + channel.id + '/messages', { method: 'POST', body: { embeds: [{
       author: { name: 'CINÉBOX  /  JOURNAL DU BOT' },
       title: String(title).slice(0, 250),
-      description: String(detail || 'Événement sans détail').slice(0, 900),
+      description: String(detail || 'Événement sans détail').replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n').slice(0, 900),
       color: 0xd8b45a,
       fields: [
         { name: 'Membre', value: username + (user.id ? ' (ID : ' + user.id + ')' : ''), inline: true },
@@ -1092,7 +1095,7 @@ async function logBotEvent(guildId, title, detail, interaction) {
       ],
       footer: { text: 'CINÉBOX  •  LOG AUTOMATIQUE' },
       timestamp: new Date().toISOString()
-    }] } });
+    }], allowed_mentions: { parse: [], users: [], roles: [], replied_user: false } } });
   } catch (error) { console.error('CINEBOX_BOT_LOG_FAILED', error?.stack || error); }
 }
 

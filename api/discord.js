@@ -530,6 +530,7 @@ module.exports = async function handler(req, res) {
             fields: [
               { name: '👤 Nom du compte', value: String(account.displayName || 'Membre CineBox').slice(0, 100), inline: true },
               { name: '🎟️ Rôle CineBox', value: roleLabels[account.role] || 'Membre', inline: true },
+              { name: '👑 Statut VIP', value: account.vip?.active ? 'VIP jusqu’au ' + new Date(account.vip.expiresAt).toLocaleDateString('fr-FR') : 'Membre standard', inline: true },
               { name: '🔗 Espace personnel', value: '[Ouvrir CineBox](https://cinebox-a1h.pages.dev/connexion)', inline: false }
             ],
             footer: { text: 'CINÉBOX  •  VÉRIFICATION PRIVÉE' },

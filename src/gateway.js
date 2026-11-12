@@ -56,9 +56,57 @@ async function sendBotLog(guild, title, description, color = 0xd8b45a) {
   }
 }
 
+const VIP_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+let vipSyncRunning = false;
+
+async function syncVipRoles() {
+  const roleId = process.env.VIP_ROLE_ID;
+  const secret = process.env.CINEBOX_API_SECRET;
+  if (!roleId || !secret || vipSyncRunning) return;
+  vipSyncRunning = true;
+  try {
+    for (const guild of client.guilds.cache.values()) {
+      const role = await guild.roles.fetch(roleId).catch(() => null);
+      if (!role) {
+        console.warn('CINEBOX_VIP_ROLE_NOT_FOUND', guild.id);
+        continue;
+      }
+      const members = await guild.members.fetch();
+      let checked = 0;
+      for (const member of members.values()) {
+        if (member.user.bot) continue;
+        try {
+          const response = await fetch(SITE_URL + 'api/internal/discord/member', {
+            method: 'POST',
+            headers: { authorization: 'Bearer ' + secret, 'content-type': 'application/json' },
+            body: JSON.stringify({ discordUserId: member.id }),
+            signal: AbortSignal.timeout(7000)
+          });
+          if (!response.ok) throw new Error('CineBox API HTTP ' + response.status);
+          const result = await response.json();
+          const shouldHaveRole = Boolean(result.linked && result.account?.vip?.active);
+          const hasRole = member.roles.cache.has(roleId);
+          if (shouldHaveRole && !hasRole) await member.roles.add(roleId, 'Statut VIP CinéBox actif');
+          else if (!shouldHaveRole && hasRole) await member.roles.remove(roleId, 'Statut VIP CinéBox absent ou expiré');
+          checked++;
+        } catch (error) {
+          console.error('CINEBOX_VIP_MEMBER_SYNC_FAILED', member.id, error?.message || error);
+        }
+      }
+      console.log('CINEBOX_VIP_SYNC_COMPLETE', guild.id, { checked });
+    }
+  } catch (error) {
+    console.error('CINEBOX_VIP_SYNC_FAILED', error?.stack || error);
+  } finally {
+    vipSyncRunning = false;
+  }
+}
+
 client.once('clientReady', () => {
   console.log('CINEBOX_GATEWAY_READY ' + client.user.tag);
   for (const guild of client.guilds.cache.values()) void sendBotLog(guild, '🟢 Bot démarré', 'CinéBox est connecté à Discord.');
+  void syncVipRoles();
+  setInterval(() => void syncVipRoles(), VIP_SYNC_INTERVAL_MS).unref();
   client.user.setPresence({
     status: 'online',
     activities: [{ name: 'CinéBox 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]

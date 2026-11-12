@@ -1094,16 +1094,20 @@ async function logBotEvent(guildId, title, detail, interaction) {
     if (!channel) return;
     const user = interaction?.member?.user || interaction?.user || {};
     const username = user.global_name || user.username || 'Utilisateur inconnu';
+    const cleanDetail = String(detail || 'Aucun détail supplémentaire.')
+      .replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n')
+      .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
     await discord('/channels/' + channel.id + '/messages', { method: 'POST', body: { embeds: [{
-      author: { name: 'CINÉBOX  /  JOURNAL DU BOT' },
-      title: String(title).slice(0, 250),
-      description: String(detail || 'Événement sans détail').replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\n').slice(0, 900),
+      author: { name: '🍿  CINÉBOX  •  JOURNAL DU BOT' },
+      title: String(title || 'Événement du bot').slice(0, 240),
+      description: cleanDetail || 'Aucun détail supplémentaire.',
       color: 0xd8b45a,
       fields: [
-        { name: 'Membre', value: username + (user.id ? ' (ID : ' + user.id + ')' : ''), inline: true },
-        { name: 'Salon', value: interaction?.channel_id ? '<#' + interaction.channel_id + '>' : 'Non disponible', inline: true }
+        { name: '👤 Membre', value: (username + (user.id ? '\\nID : ' + user.id : '')).slice(0, 1024), inline: true },
+        { name: '📍 Salon', value: interaction?.channel_id ? '<#' + interaction.channel_id + '>' : 'Non disponible', inline: true },
+        { name: '🛡️ Source', value: 'Action via commande CinéBox', inline: true }
       ],
-      footer: { text: 'CINÉBOX  •  LOG AUTOMATIQUE' },
+      footer: { text: 'CINÉBOX  •  JOURNAL SYSTÈME' },
       timestamp: new Date().toISOString()
     }], allowed_mentions: { parse: [], users: [], roles: [], replied_user: false } } });
   } catch (error) { console.error('CINEBOX_BOT_LOG_FAILED', error?.stack || error); }

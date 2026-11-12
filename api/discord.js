@@ -75,7 +75,7 @@ module.exports = async function handler(req, res) {
         const description = entries.length ? entries.map(message => {
           const embed = message.embeds.find(item => actionTitles.test(item.title || ''));
           const detail = String(embed.description || '').slice(0, 500);
-          return '**' + (embed.title || 'Action de modération') + '**\n' + detail + '\n< t:' + Math.floor(new Date(message.timestamp).getTime() / 1000) + ':R>';
+          return '**' + (embed.title || 'Action de modération') + '**\n' + detail + '\n<t:' + Math.floor(new Date(message.timestamp).getTime() / 1000) + ':R>';
         }).join('\n\n') : 'Aucune action de modération récente trouvée dans les 100 derniers messages.';
         await editOriginal(interaction, { content: '', embeds: [{ title: '🛡️ Journal de modération — 10 dernières actions', description: description.slice(0, 3900), color: 0xd8b45a, footer: { text: 'CINÉBOX • LOGS DE MODÉRATION' }, timestamp: new Date().toISOString() }] });
       } catch (error) {

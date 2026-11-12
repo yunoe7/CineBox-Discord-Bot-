@@ -58,7 +58,35 @@ module.exports = async function handler(req, res) {
   if (interaction.type !== 2) return res.status(400).send('Unsupported interaction');
 
   const name = interaction.data && interaction.data.name;
-    if (['warn','warnings','clear-warnings','timeout','untimeout','kick','ban'].includes(name)) {
+    if (name === 'modlogs') {
+    if (!hasPermission(interaction.member?.permissions, 1099511627776n) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
+      return embedReply(res, { title: '🔒 Permission nécessaire', description: 'La consultation du journal de modération nécessite la permission Modérer les membres.', color: 0xed4245 });
+    }
+    if (!interaction.guild_id) return embedReply(res, { title: '⚠️ Contexte invalide', description: 'Cette commande doit être utilisée sur un serveur.', color: 0xed4245 });
+    res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
+    waitUntil((async () => {
+      try {
+        const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
+        const channel = channels.find(item => item.name === '📋・logs-bot' && item.type === 0);
+        if (!channel) throw new Error('Le salon 📋・logs-bot est introuvable.');
+        const messages = await discord('/channels/' + channel.id + '/messages?limit=100');
+        const actionTitles = /avertissement officiel|mise en sourdine|fin de mise en sourdine|membre expulsé|membre banni/i;
+        const entries = messages.filter(message => (message.embeds || []).some(embed => actionTitles.test(embed.title || ''))).slice(0, 10);
+        const description = entries.length ? entries.map(message => {
+          const embed = message.embeds.find(item => actionTitles.test(item.title || ''));
+          const detail = String(embed.description || '').slice(0, 500);
+          return '**' + (embed.title || 'Action de modération') + '**\n' + detail + '\n< t:' + Math.floor(new Date(message.timestamp).getTime() / 1000) + ':R>';
+        }).join('\n\n') : 'Aucune action de modération récente trouvée dans les 100 derniers messages.';
+        await editOriginal(interaction, { content: '', embeds: [{ title: '🛡️ Journal de modération — 10 dernières actions', description: description.slice(0, 3900), color: 0xd8b45a, footer: { text: 'CINÉBOX • LOGS DE MODÉRATION' }, timestamp: new Date().toISOString() }] });
+      } catch (error) {
+        console.error('CINEBOX_MODLOGS_FAILED', error?.stack || error);
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Journal indisponible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
+      }
+    })());
+    return;
+  }
+
+  if (['warn','warnings','clear-warnings','timeout','untimeout','kick','ban'].includes(name)) {
     const permissionByCommand = { warn: 1099511627776n, warnings: 1099511627776n, 'clear-warnings': 1099511627776n, timeout: 1099511627776n, untimeout: 1099511627776n, kick: 2n, ban: 4n };
     if (!hasPermission(interaction.member?.permissions, permissionByCommand[name]) && !hasPermission(interaction.member?.permissions, PERM.ADMIN)) {
       return embedReply(res, { title: '🔒 Permission nécessaire', description: 'Tu ne disposes pas de la permission Discord requise pour cette action de modération.', color: 0xed4245 });

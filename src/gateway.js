@@ -45,14 +45,38 @@ client.once('clientReady', () => {
 
 async function readWelcomeConfig(guild) {
   try {
-    const configChannel = guild.channels.cache.find(channel => channel.name === '📋•journal-équipe' && channel.isTextBased());
-    if (!configChannel) return null;
+    // Force a fresh read: setup/configuration may have changed after the bot started.
+    const configChannel = await guild.channels.fetch().then(channels =>
+      channels.find(channel => channel.name === '📋•journal-équipe' && channel.isTextBased()) || null
+    );
+    if (!configChannel) {
+      console.warn('CINEBOX_WELCOME_CONFIG_CHANNEL_MISSING', guild.id);
+      return null;
+    }
     const fresh = await configChannel.fetch(true);
-    const match = (fresh.topic || '').match(/CINEBOX_WELCOME_CONFIG:(\\{[^}]*\\})/);
-    if (!match) return null;
-    return JSON.parse(match[1]);
+    const topic = fresh.topic || '';
+    const marker = 'CINEBOX_WELCOME_CONFIG:';
+    const index = topic.indexOf(marker);
+    if (index === -1) {
+      console.warn('CINEBOX_WELCOME_CONFIG_NOT_SET', guild.id);
+      return null;
+    }
+    const raw = topic.slice(index + marker.length).trim();
+    const match = raw.match(/^(\{.*\})$/);
+    if (!match) {
+      console.error('CINEBOX_WELCOME_CONFIG_INVALID_FORMAT', guild.id);
+      return null;
+    }
+    const config = JSON.parse(match[1]);
+    console.log('CINEBOX_WELCOME_CONFIG_LOADED', guild.id, {
+      welcomeEnabled: Boolean(config.welcomeEnabled),
+      welcomeChannelConfigured: Boolean(config.welcomeChannelId),
+      goodbyeEnabled: Boolean(config.goodbyeEnabled),
+      autoRoleEnabled: Boolean(config.autoRoleEnabled)
+    });
+    return config;
   } catch (error) {
-    console.error('CINEBOX_WELCOME_CONFIG_READ_FAILED', error);
+    console.error('CINEBOX_WELCOME_CONFIG_READ_FAILED', error?.stack || error);
     return null;
   }
 }
@@ -62,22 +86,46 @@ client.on('guildMemberAdd', async member => {
   void sendBotLog(member.guild, '👋 Nouveau membre', '**' + (member.user.tag || member.user.username) + '** a rejoint le serveur.\nID : ' + member.id);
   try {
     const config = await readWelcomeConfig(member.guild);
-    if (!config) return;
-    if (config.autoRoleEnabled && config.newMemberRoleId) {
-      const role = await member.guild.roles.fetch(config.newMemberRoleId).catch(() => null);
-      if (role) await member.roles.add(role, 'Rôle automatique configuré par un administrateur CinéBox');
+    if (!config) {
+      console.warn('CINEBOX_WELCOME_SKIPPED_NO_CONFIG', member.guild.id);
+      return;
     }
-    if (!config.welcomeEnabled || !config.welcomeChannelId) return;
-    const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(() => null);
-    if (!channel || !channel.isTextBased()) return;
+    if (config.autoRoleEnabled && config.newMemberRoleId) {
+      const role = await member.guild.roles.fetch(config.newMemberRoleId).catch(error => {
+        console.error('CINEBOX_WELCOME_ROLE_FETCH_FAILED', error?.message || error);
+        return null;
+      });
+      if (role) {
+        await member.roles.add(role, 'Rôle automatique configuré par un administrateur CinéBox');
+        console.log('CINEBOX_WELCOME_ROLE_ASSIGNED', member.id, role.id);
+      } else {
+        console.warn('CINEBOX_WELCOME_ROLE_NOT_FOUND', config.newMemberRoleId);
+      }
+    }
+    if (!config.welcomeEnabled) {
+      console.warn('CINEBOX_WELCOME_DISABLED', member.guild.id);
+      return;
+    }
+    if (!config.welcomeChannelId) {
+      console.warn('CINEBOX_WELCOME_CHANNEL_NOT_CONFIGURED', member.guild.id);
+      return;
+    }
+    const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(error => {
+      console.error('CINEBOX_WELCOME_CHANNEL_FETCH_FAILED', config.welcomeChannelId, error?.message || error);
+      return null;
+    });
+    if (!channel || !channel.isTextBased() || !channel.isSendable()) {
+      console.error('CINEBOX_WELCOME_CHANNEL_UNAVAILABLE', config.welcomeChannelId);
+      return;
+    }
     const embed = new EmbedBuilder()
       .setColor(0xd8b45a)
       .setAuthor({ name: 'CINÉBOX  /  BIENVENUE AU CLUB' })
       .setTitle('🎬 Bienvenue ' + (member.user.globalName || member.user.username) + ' !')
       .setDescription(
-        'Installe-toi confortablement, la séance va commencer. 🍿\\n\\n' +
+        'Installe-toi confortablement, la séance va commencer. 🍿\n\n' +
         'Tu rejoins **CinéBox**, le club des passionnés de films et de séries. ' +
-        'Présente-toi et découvre les salons du serveur.\\n\\n' +
+        'Présente-toi et découvre les salons du serveur.\n\n' +
         '🌐 [Découvrir le site CinéBox](' + SITE_URL + ')'
       )
       .setThumbnail(member.user.displayAvatarURL({ extension: 'png', size: 256 }))
@@ -87,9 +135,13 @@ client.on('guildMemberAdd', async member => {
       )
       .setFooter({ text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' })
       .setTimestamp();
-    await channel.send({ content: '✨ <@' + member.id + '> rejoint le ciné-club !', embeds: [embed] });
+    const sent = await channel.send({ content: '✨ <@' + member.id + '> rejoint le ciné-club !', embeds: [embed] });
+    console.log('CINEBOX_WELCOME_SENT', member.id, channel.id, sent.id);
   } catch (error) {
-    console.error('CINEBOX_WELCOME_ERROR', error);
+    console.error('CINEBOX_WELCOME_ERROR', member.id, error?.stack || error);
+    void sendBotLog(member.guild, '⚠️ Échec du message de bienvenue',
+      'Impossible de publier le message pour <@' + member.id + '>. Vérifie les permissions du bot dans le salon de bienvenue.\\n' +
+      String(error?.message || error).slice(0, 700), 0xed4245);
   }
 });
 

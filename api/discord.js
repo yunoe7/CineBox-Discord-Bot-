@@ -41,13 +41,14 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     waitUntil((async () => {
       try {
-        const [guildRoles, actor, target, botMember, channels] = await Promise.all([
+        const [guildRoles, actor, target, botUser, channels] = await Promise.all([
           discord('/guilds/' + interaction.guild_id + '/roles'),
           discord('/guilds/' + interaction.guild_id + '/members/' + interaction.member.user.id),
           discord('/guilds/' + interaction.guild_id + '/members/' + targetId),
-          discord('/guilds/' + interaction.guild_id + '/members/@me'),
+          discord('/users/@me'),
           discord('/guilds/' + interaction.guild_id + '/channels')
         ]);
+        const botMember = await discord('/guilds/' + interaction.guild_id + '/members/' + botUser.id);
         const highest = member => Math.max(0, ...(member.roles || []).map(id => Number(guildRoles.find(role => role.id === id)?.position || 0)));
         if (target.user?.id === interaction.application_id) throw new Error('Je ne peux pas appliquer cette action à moi-même.');
         if (name !== 'warnings' && name !== 'clear-warnings' &&

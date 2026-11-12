@@ -12,6 +12,13 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('membre').setDescription('Membre à avertir').setRequired(true))
     .addStringOption(o => o.setName('raison').setDescription('Motif de l’avertissement').setRequired(false).setMaxLength(450)),
+  new SlashCommandBuilder().setName('warnings').setDescription('Consulte les avertissements enregistrés d’un membre.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre à consulter').setRequired(true)),
+  new SlashCommandBuilder().setName('clear-warnings').setDescription('Efface les avertissements enregistrés d’un membre.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+    .addUserOption(o => o.setName('membre').setDescription('Membre concerné').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif de l’effacement').setRequired(false).setMaxLength(300)),
   new SlashCommandBuilder().setName('timeout').setDescription('Empêche temporairement un membre de participer.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(o => o.setName('membre').setDescription('Membre à mettre en sourdine').setRequired(true))

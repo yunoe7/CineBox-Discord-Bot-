@@ -61,15 +61,20 @@ module.exports = async function handler(req, res) {
         const fetchWarnings = async () => {
           const messages = await discord('/channels/' + logChannel.id + '/messages?limit=100');
           return messages.filter(message => {
+            const marker = decodeHiddenMarker(message.content || '');
             const content = message.content || '';
-            return content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
+            return marker.includes('[CINEBOX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')
+              || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
           });
         };
 
         if (name === 'warnings') {
           const messages = await fetchWarnings();
-          const entries = messages.filter(message => !(message.content || '').includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'));
-          const clearedAt = messages.filter(message => (message.content || '').includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'))
+          const entries = messages.filter(message => {
+            const marker = decodeHiddenMarker(message.content || '') + (message.content || '');
+            return marker.includes('[CINEBOX_WARN:' + targetId + ']') && !marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
+          });
+          const clearedAt = messages.filter(message => (decodeHiddenMarker(message.content || '') + (message.content || '')).includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'))
             .reduce((max, message) => Math.max(max, Date.parse(message.timestamp) || 0), 0);
           const active = entries.filter(message => (Date.parse(message.timestamp) || 0) > clearedAt);
           const description = active.length
@@ -83,14 +88,22 @@ module.exports = async function handler(req, res) {
         }
 
         if (name === 'clear-warnings') {
-          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN_CLEAR:' + targetId + '] Effacement effectué par <@' + interaction.member.user.id + '> — ' + reason } });
-          await logBotEvent(interaction.guild_id, '🧹 Avertissements effacés', '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, interaction);
+          const moderatorId = interaction.member.user.id;
+          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: {
+            content: encodeHiddenMarker('[CINEBOX_WARN_CLEAR:' + targetId + ']'),
+            embeds: [{ title: '🧹 Avertissements effacés', description: '**Membre concerné :** <@' + targetId + '>\n**Modérateur :** <@' + moderatorId + '>\n**Motif :** ' + reason + '\n\nLes avertissements actifs de ce membre ont été réinitialisés.', color: 0x57f287, timestamp: new Date().toISOString() }],
+            allowed_mentions: { parse: [], users: [targetId, moderatorId] }
+          } });
           await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Historique réinitialisé', description: 'Les avertissements actifs de <@' + targetId + '> ont été effacés.', color: 0x57f287 }] });
           return;
         }
 
         if (name === 'warn') {
-          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: { content: '[CINEBOX_WARN:' + targetId + ']', embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }] } });
+          await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: {
+            content: encodeHiddenMarker('[CINEBOX_WARN:' + targetId + ']'),
+            embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }],
+            allowed_mentions: { parse: [], users: [targetId, interaction.member.user.id] }
+          } });
         } else if (name === 'timeout') {
           if (!Number.isInteger(duration) || duration < 1 || duration > 40320) throw new Error('La durée doit être comprise entre 1 et 40 320 minutes (28 jours).');
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'PATCH', body: { communication_disabled_until: new Date(Date.now() + duration * 60000).toISOString() } });
@@ -1022,6 +1035,18 @@ async function editOriginal(interaction, content) {
   } catch (error) {
     console.error('SETUP_EDIT_NETWORK_ERROR', error && error.message || error);
   }
+}
+function encodeHiddenMarker(value) {
+  const bits = Array.from(String(value), char => char.charCodeAt(0).toString(2).padStart(16, '0')).join('');
+  return '\u2063' + bits.replace(/0/g, '\u200b').replace(/1/g, '\u200c') + '\u2063';
+}
+function decodeHiddenMarker(value) {
+  const match = String(value).match(/\u2063([\u200b\u200c]+)\u2063/);
+  if (!match) return '';
+  const bits = match[1].replace(/\u200b/g, '0').replace(/\u200c/g, '1');
+  let output = '';
+  for (let i = 0; i + 15 < bits.length; i += 16) output += String.fromCharCode(parseInt(bits.slice(i, i + 16), 2));
+  return output;
 }
 function bitset() { return String(Array.from(arguments).reduce((sum, value) => sum | BigInt(value), 0n)); }
 function hasPermission(value, permission) {

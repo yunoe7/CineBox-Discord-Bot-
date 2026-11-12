@@ -17,8 +17,26 @@ function getTextChannel(guild, id, fallbackName) {
     null;
 }
 
+async function sendBotLog(guild, title, description, color = 0xd8b45a) {
+  try {
+    const channel = guild.channels.cache.find(item => item.isTextBased() && item.name === '📋・logs-bot');
+    if (!channel) return;
+    await channel.send({ embeds: [{
+      author: { name: 'CINÉBOX  /  JOURNAL DU BOT' },
+      title,
+      description: String(description || 'Aucun détail').slice(0, 900),
+      color,
+      footer: { text: 'CINÉBOX  •  LOG AUTOMATIQUE' },
+      timestamp: new Date()
+    }] });
+  } catch (error) {
+    console.error('CINEBOX_BOT_LOG_SEND_FAILED', error?.stack || error);
+  }
+}
+
 client.once('clientReady', () => {
   console.log('CINEBOX_GATEWAY_READY ' + client.user.tag);
+  for (const guild of client.guilds.cache.values()) void sendBotLog(guild, '🟢 Bot démarré', 'CinéBox est connecté à Discord.');
   client.user.setPresence({
     status: 'online',
     activities: [{ name: 'CinéBox 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]
@@ -41,6 +59,7 @@ async function readWelcomeConfig(guild) {
 
 client.on('guildMemberAdd', async member => {
   console.log('CINEBOX_MEMBER_JOIN ' + member.user.id);
+  void sendBotLog(member.guild, '👋 Nouveau membre', '**' + (member.user.tag || member.user.username) + '** a rejoint le serveur.\nID : ' + member.id);
   try {
     const config = await readWelcomeConfig(member.guild);
     if (!config) return;
@@ -76,6 +95,7 @@ client.on('guildMemberAdd', async member => {
 
 client.on('guildMemberRemove', async member => {
   console.log('CINEBOX_MEMBER_LEAVE ' + member.user.id);
+  void sendBotLog(member.guild, '🌙 Départ d’un membre', '**' + (member.user.tag || member.user.username) + '** a quitté le serveur.\nID : ' + member.id, 0x64748b);
   try {
     const config = await readWelcomeConfig(member.guild);
     if (!config || !config.goodbyeEnabled || !config.goodbyeChannelId) return;

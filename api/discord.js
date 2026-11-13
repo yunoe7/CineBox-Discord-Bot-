@@ -480,7 +480,8 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
   }
 
-  if (name === 'mon-compte') {
+  if (name === 'mon-compte' || name === 'vip') {
+    const isVipCommand = name === 'vip';
     const discordUserId = interaction.member?.user?.id || interaction.user?.id;
     if (!discordUserId) return embedReply(res, {
       title: '⚠️ Utilisateur introuvable',
@@ -507,35 +508,95 @@ module.exports = async function handler(req, res) {
           throw new Error('Le service de comptes CinéBox est temporairement indisponible (HTTP ' + response.status + ').');
         }
         const result = await response.json();
+        const siteUrl = 'https://cinebox-a1h.pages.dev/';
+        const components = [{ type: 1, components: [
+          { type: 2, style: 5, label: 'Ouvrir CinéBox', url: siteUrl },
+          { type: 2, style: 5, label: 'Mon espace / connexion', url: siteUrl + 'connexion' }
+        ] }];
+
         if (!result.linked) {
           await editOriginal(interaction, {
             content: '',
             embeds: [{
-              title: '🎟️ Aucun compte CinéBox associé',
-              description: 'Ton compte Discord fonctionne, mais il n’est pas encore associé à un compte CineBox. Connecte-toi au site avec Discord pour créer ton compte, ou utilise la fonction d’association depuis ton espace si tu as déjà un autre compte.',
+              author: { name: isVipCommand ? 'CINÉBOX  /  PASS VIP' : 'CINÉBOX  /  PROFIL MEMBRE' },
+              title: isVipCommand ? '🎟️ Ton pass VIP' : '🔗 Ton compte n’est pas encore lié',
+              description: isVipCommand
+                ? 'Aucun compte CinéBox n’est associé à ton Discord pour le moment. Lie ton compte pour que le bot puisse vérifier tes avantages VIP.'
+                : 'Ton compte Discord fonctionne, mais il n’est pas encore associé à un compte CinéBox. Connecte-toi au site avec Discord, ou utilise la fonction d’association depuis ton espace si tu possèdes déjà un compte.',
               color: 0xd8b45a,
-              footer: { text: 'CINÉBOX  •  COMPTE PERSONNEL' }
-            }]
+              fields: isVipCommand ? [
+                { name: 'ÉTAT DU PASS', value: '⚪ Non vérifiable — compte non lié', inline: false },
+                { name: 'COMMENT L’ACTIVER ?', value: '1. Ouvre CinéBox.
+2. Connecte-toi avec Discord.
+3. Relance `/vip` pour consulter ton statut.', inline: false }
+              ] : [
+                { name: 'STATUT', value: 'Compte Discord non associé', inline: true },
+                { name: 'PROCHAINE ÉTAPE', value: 'Connecte-toi à CinéBox avec Discord.', inline: true }
+              ],
+              footer: { text: 'CINÉBOX  •  TON ESPACE PERSONNEL' },
+              timestamp: new Date().toISOString()
+            }],
+            components
           });
           return;
         }
+
         const account = result.account || {};
         const roleLabels = { admin: 'Administrateur', moderator: 'Modérateur', user: 'Membre' };
+        const vip = account.vip || {};
+        const vipActive = Boolean(vip.active);
+        const expiryDate = vip.expiresAt ? new Date(vip.expiresAt) : null;
+        const expiryValid = expiryDate && Number.isFinite(expiryDate.getTime());
+        const expiryText = expiryValid
+          ? '<t:' + Math.floor(expiryDate.getTime() / 1000) + ':F>\n' + (expiryDate.getTime() > Date.now() ? 'Expire <t:' + Math.floor(expiryDate.getTime() / 1000) + ':R>' : 'Date dépassée')
+          : vipActive ? 'Actif — aucune date d’expiration communiquée' : 'Aucun abonnement VIP actif';
+        const avatarHash = interaction.user?.avatar || interaction.member?.user?.avatar;
+        const avatarUrl = avatarHash ? 'https://cdn.discordapp.com/avatars/' + discordUserId + '/' + avatarHash + '.png?size=256' : undefined;
+        const accountName = String(account.displayName || interaction.user?.global_name || interaction.user?.username || 'Membre CinéBox').slice(0, 100);
+        const statusValue = vipActive ? '💎 **VIP actif**' : '⚪ **Membre standard**';
+
+        if (isVipCommand) {
+          await editOriginal(interaction, {
+            content: '',
+            embeds: [{
+              author: { name: 'CINÉBOX  /  CLUB VIP', icon_url: avatarUrl },
+              title: vipActive ? '👑 Ton pass VIP est actif' : '🎟️ Ton pass CinéBox',
+              description: vipActive
+                ? 'Ton compte bénéficie actuellement du statut VIP sur CinéBox. Profite des contenus et avantages réservés aux membres VIP selon les règles du site.'
+                : 'Tu n’as pas de statut VIP actif pour le moment. Tu peux découvrir les offres et gérer ton compte directement sur CinéBox.',
+              color: vipActive ? 0xd8b45a : 0x64748b,
+              fields: [
+                { name: 'MEMBRE', value: accountName, inline: true },
+                { name: 'STATUT DU PASS', value: statusValue, inline: true },
+                { name: 'VALIDITÉ', value: expiryText, inline: false },
+                { name: 'COMPTE CINÉBOX', value: roleLabels[account.role] || 'Membre', inline: true }
+              ],
+              footer: { text: 'CINÉBOX  •  VÉRIFICATION EN DIRECT DU SITE' },
+              timestamp: new Date().toISOString()
+            }],
+            components
+          });
+          return;
+        }
+
         await editOriginal(interaction, {
           content: '',
           embeds: [{
-            title: '🎬 Ton compte CineBox est associé',
-            description: 'Ton identité Discord est bien reliée à ton compte CineBox.',
-            color: 0x57f287,
+            author: { name: 'CINÉBOX  /  PROFIL MEMBRE', icon_url: avatarUrl },
+            title: '🎬 ' + accountName,
+            description: 'Voici ta carte personnelle CinéBox. Les informations sont récupérées directement depuis ton compte lié.',
+            color: vipActive ? 0xd8b45a : 0x5865f2,
+            thumbnail: avatarUrl ? { url: avatarUrl } : undefined,
             fields: [
-              { name: '👤 Nom du compte', value: String(account.displayName || 'Membre CineBox').slice(0, 100), inline: true },
-              { name: '🎟️ Rôle CineBox', value: roleLabels[account.role] || 'Membre', inline: true },
-              { name: '👑 Statut VIP', value: account.vip?.active ? 'VIP jusqu’au ' + new Date(account.vip.expiresAt).toLocaleDateString('fr-FR') : 'Membre standard', inline: true },
-              { name: '🔗 Espace personnel', value: '[Ouvrir CineBox](https://cinebox-a1h.pages.dev/connexion)', inline: false }
+              { name: '🎟️ STATUT DU COMPTE', value: roleLabels[account.role] || 'Membre', inline: true },
+              { name: '👑 PASS VIP', value: statusValue, inline: true },
+              { name: '📅 VALIDITÉ VIP', value: expiryText, inline: false },
+              { name: '🔗 COMPTE LIÉ', value: 'Discord associé à ton compte CinéBox', inline: false }
             ],
-            footer: { text: 'CINÉBOX  •  VÉRIFICATION PRIVÉE' },
+            footer: { text: 'CINÉBOX  •  TON PROFIL PERSONNEL' },
             timestamp: new Date().toISOString()
-          }]
+          }],
+          components
         });
       } catch (error) {
         console.error('CINEBOX_ACCOUNT_LOOKUP_FAILED', error?.stack || error);
@@ -591,6 +652,7 @@ module.exports = async function handler(req, res) {
           { name: '🛡️  MODÉRATION', value: '`/warn` · `/warnings` · `/clear-warnings`\nGère et consulte les avertissements.\n\n`/timeout` · `/untimeout` · `/kick` · `/ban`\nApplique les actions de modération selon tes permissions.\n\n`/modlogs`\nConsulte les dernières actions de modération.\n\n`/cloturer-sondage`\nFerme le sondage du salon.', inline: false },
           { name: '⚙️  ADMINISTRATION', value: '`/config-accueil`\nConfigure les messages de bienvenue et de départ.\n\n`/reset-cinebox`\nRetire la structure CinéBox après confirmation *(administrateurs)*.', inline: false },
           { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote communautaire pour choisir le prochain film.\n\n`/tirage-cinema`\nLaisse le hasard décider entre plusieurs films.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste tes connaissances avec un quiz interactif.', inline: false },
+          { name: '🎟️  TON ESPACE CINÉBOX', value: '`/mon-compte`\nAffiche ta carte de profil et les informations de ton compte lié.\n\n`/vip`\nConsulte ton statut VIP et sa date de validité.', inline: false },
           { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour faire évoluer le club.\n\n`/signaler`\nTransmets un bug ou un problème à l’équipe.', inline: false },
           { name: '🎬  ORGANISATION DU CLUB', value: '`/programmer-seance`\nCrée un événement officiel dans un salon vocal *(permission Créer des événements)*.\n\n`/ping`\nVérifie que CinéBox répond.\n\n`/setup`\nInstalle ou répare les salons et les rôles *(administrateurs)*.', inline: false }
         ],

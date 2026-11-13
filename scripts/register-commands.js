@@ -49,6 +49,7 @@ const commands = [
     .addRoleOption(o => o.setName('role-nouveau').setDescription('Rôle à attribuer si le rôle automatique est activé').setRequired(false)),
   new SlashCommandBuilder().setName('reset-cinebox').setDescription('Supprime la structure CinéBox après confirmation.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('mon-compte').setDescription('Vérifie la liaison entre ton compte Discord et CineBox.'),
+  new SlashCommandBuilder().setName('vip').setDescription('Consulte ton pass VIP et sa date de validité sur CinéBox.'),
   new SlashCommandBuilder().setName('ping').setDescription('Vérifie que le bot répond.'),
   new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes CinéBox.'),
   new SlashCommandBuilder().setName('signaler').setDescription('Signale un bug ou un problème à l’équipe.')

@@ -526,9 +526,7 @@ module.exports = async function handler(req, res) {
               color: 0xd8b45a,
               fields: isVipCommand ? [
                 { name: 'ÉTAT DU PASS', value: '⚪ Non vérifiable — compte non lié', inline: false },
-                { name: 'COMMENT L’ACTIVER ?', value: '1. Ouvre CinéBox.
-2. Connecte-toi avec Discord.
-3. Relance `/vip` pour consulter ton statut.', inline: false }
+                { name: 'COMMENT L’ACTIVER ?', value: '1. Ouvre CinéBox.\n2. Connecte-toi avec Discord.\n3. Relance `/vip` pour consulter ton statut.', inline: false }
               ] : [
                 { name: 'STATUT', value: 'Compte Discord non associé', inline: true },
                 { name: 'PROCHAINE ÉTAPE', value: 'Connecte-toi à CinéBox avec Discord.', inline: true }

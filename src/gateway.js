@@ -6,8 +6,8 @@ const { Client, GatewayIntentBits, EmbedBuilder, ActivityType, PermissionsBitFie
 const { DISCORD_TOKEN } = process.env;
 if (!DISCORD_TOKEN) throw new Error('DISCORD_TOKEN est requis pour le service Gateway CinéBox.');
 
-const SITE_URL = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\\/+$/, '') + '/';
-const MOVIX_API_URL = (process.env.MOVIX_API_URL || SITE_URL).replace(/\\/+$/, '');
+const SITE_URL = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\/+$/, '') + '/';
+const MOVIX_API_URL = (process.env.MOVIX_API_URL || SITE_URL).replace(/\/+$/, '');
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages]
 });

@@ -6,7 +6,8 @@ const { Client, GatewayIntentBits, EmbedBuilder, ActivityType, PermissionsBitFie
 const { DISCORD_TOKEN } = process.env;
 if (!DISCORD_TOKEN) throw new Error('DISCORD_TOKEN est requis pour le service Gateway CinéBox.');
 
-const SITE_URL = 'https://cinebox-a1h.pages.dev/';
+const SITE_URL = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\\/+$/, '') + '/';
+const MOVIX_API_URL = (process.env.MOVIX_API_URL || SITE_URL).replace(/\\/+$/, '');
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages]
 });
@@ -61,7 +62,7 @@ let vipSyncRunning = false;
 
 async function syncVipRoles() {
   const roleId = process.env.VIP_ROLE_ID;
-  const secret = process.env.CINEBOX_API_SECRET;
+  const secret = process.env.MOVIX_DISCORD_SYNC_SECRET;
   if (!roleId || !secret || vipSyncRunning) return;
   vipSyncRunning = true;
   try {
@@ -76,18 +77,21 @@ async function syncVipRoles() {
       for (const member of members.values()) {
         if (member.user.bot) continue;
         try {
-          const response = await fetch(SITE_URL + 'api/internal/discord/member', {
+          const response = await fetch(MOVIX_API_URL + '/api/internal/discord/member', {
             method: 'POST',
             headers: { authorization: 'Bearer ' + secret, 'content-type': 'application/json' },
             body: JSON.stringify({ discordUserId: member.id }),
             signal: AbortSignal.timeout(7000)
           });
-          if (!response.ok) throw new Error('CineBox API HTTP ' + response.status);
+          if (!response.ok) throw new Error('Movix API HTTP ' + response.status);
           const result = await response.json();
-          const shouldHaveRole = Boolean(result.linked && result.account?.vip?.active);
+          if (result?.success !== true || typeof result.linked !== 'boolean' || typeof result.vip?.active !== 'boolean') {
+            throw new Error('Réponse VIP Movix invalide — rôle conservé par sécurité');
+          }
+          const shouldHaveRole = result.linked && result.vip.active;
           const hasRole = member.roles.cache.has(roleId);
-          if (shouldHaveRole && !hasRole) await member.roles.add(roleId, 'Statut VIP CinéBox actif');
-          else if (!shouldHaveRole && hasRole) await member.roles.remove(roleId, 'Statut VIP CinéBox absent ou expiré');
+          if (shouldHaveRole && !hasRole) await member.roles.add(roleId, 'Statut VIP Movix actif');
+          else if (!shouldHaveRole && hasRole) await member.roles.remove(roleId, 'Statut VIP Movix absent ou expiré');
           checked++;
         } catch (error) {
           console.error('CINEBOX_VIP_MEMBER_SYNC_FAILED', member.id, error?.message || error);

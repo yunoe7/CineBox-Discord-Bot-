@@ -4,6 +4,19 @@ const path = require('node:path');
 const waitUntil = task => { void task.catch(error => console.error('BACKGROUND_TASK_FAILED', error)); };
 const API = 'https://discord.com/api/v10';
 const EPHEMERAL = 64;
+
+async function fetchMovixMember(url, options) {
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await fetch(url, { ...options, signal: AbortSignal.timeout(12000) });
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+  throw lastError;
+}
 // Votes persistés sur le volume Railway monté dans /data.
 const CINEMA_POLL_STORE = process.env.CINEMA_POLL_STORE || '/data/cinema-polls.json';
 let cinemaPollWriteQueue = Promise.resolve();
@@ -495,14 +508,13 @@ module.exports = async function handler(req, res) {
       try {
         const secret = process.env.MOVIX_DISCORD_SYNC_SECRET || process.env.CINEBOX_API_SECRET;
         if (!secret) throw new Error('La liaison au site n’est pas encore configurée sur le bot.');
-        const response = await fetch((process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\/+$/, '') + '/api/internal/discord/member', {
+        const response = await fetchMovixMember((process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\/+$/, '') + '/api/internal/discord/member', {
           method: 'POST',
           headers: {
             authorization: 'Bearer ' + secret,
             'content-type': 'application/json'
           },
           body: JSON.stringify({ discordUserId }),
-          signal: AbortSignal.timeout(7000)
         });
         if (!response.ok) {
           if (response.status === 401) throw new Error('La clé de liaison entre le bot et le site est invalide.');

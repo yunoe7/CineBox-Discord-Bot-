@@ -13,4 +13,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm run check
+      - run: npm ci
+      - name: Check interaction handler
+        run: node --check api/discord.js
+      - name: Check command registration
+        run: node --check scripts/register-commands.js
+      - name: Check server setup
+        run: node --check src/setup.js
+      - name: Check Discord gateway
+        run: node --check src/gateway.js

@@ -151,8 +151,8 @@ module.exports = async function handler(req, res) {
             for (const message of page) {
               const marker = decodeHiddenMarker(message.content || '');
               const content = message.content || '';
-              if (marker.includes('[MOVIX_WARN:' + targetId + ']') || marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']')
-                || content.includes('[MOVIX_WARN:' + targetId + ']') || content.includes('[MOVIX_WARN_CLEAR:' + targetId + ']')) {
+              if (marker.includes('[MOVIX_WARN:' + targetId + ']') || marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') || marker.includes('[CINEBOX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')
+                || content.includes('[MOVIX_WARN:' + targetId + ']') || content.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']') {
                 matches.push(message);
               }
             }
@@ -430,7 +430,7 @@ module.exports = async function handler(req, res) {
     const task = (async () => {
       try {
         const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
-        const configChannel = channels.find(channel => channel.name === '📋•journal-équipe' && channel.type === 0);
+        const configChannel = channels.find(channel => ['📋•journal-équipe', '📋・journal-équipe', '📋-journal-équipe'].includes(channel.name) && channel.type === 0);
         if (!configChannel) throw new Error('Le salon privé 📋•journal-équipe est introuvable. Lance /setup pour créer la structure Movix.');
         const prefix = 'MOVIX_WELCOME_CONFIG:';
         let current = { welcomeEnabled: false, goodbyeEnabled: false, autoRoleEnabled: false, welcomeChannelId: null, goodbyeChannelId: null, newMemberRoleId: null };
@@ -475,7 +475,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (name === 'reset-cinebox') {
+  if (name === 'reset-movix' || name === 'reset-cinebox') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });
     return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de Movix', description: 'Cette action supprimera les salons, catégories et rôles gérés par Movix. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure Movix.', color: 0xed4245, footer: { text: 'MOVIX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
   }
@@ -492,9 +492,9 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     waitUntil((async () => {
       try {
-        const secret = process.env.MOVIX_API_SECRET;
+        const secret = process.env.MOVIX_DISCORD_SYNC_SECRET || process.env.CINEBOX_API_SECRET;
         if (!secret) throw new Error('La liaison au site n’est pas encore configurée sur le bot.');
-        const response = await fetch('https://movix.miami/api/internal/discord/member', {
+        const response = await fetch((process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\\/+$/, '') + '/api/internal/discord/member', {
           method: 'POST',
           headers: {
             authorization: 'Bearer ' + secret,
@@ -508,7 +508,7 @@ module.exports = async function handler(req, res) {
           throw new Error('Le service de comptes Movix est temporairement indisponible (HTTP ' + response.status + ').');
         }
         const result = await response.json();
-        const siteUrl = 'https://movix.miami/';
+        const siteUrl = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\\/+$/, '') + '/';
         const components = [{ type: 1, components: [
           { type: 2, style: 5, label: 'Ouvrir Movix', url: siteUrl },
           { type: 2, style: 5, label: 'Mon espace / connexion', url: siteUrl + 'connexion' }

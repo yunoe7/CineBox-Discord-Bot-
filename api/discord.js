@@ -509,10 +509,10 @@ module.exports = async function handler(req, res) {
           throw new Error('Le service de comptes Movix est temporairement indisponible (HTTP ' + response.status + ').');
         }
         const result = await response.json();
-        const siteUrl = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\/+$/, '') + '/';
+        const siteUrl = 'https://movix-reborn.yunoo-collab.workers.dev';
         const components = [{ type: 1, components: [
           { type: 2, style: 5, label: 'Ouvrir Movix', url: siteUrl },
-          { type: 2, style: 5, label: 'Mon espace / connexion', url: siteUrl + 'connexion' }
+          { type: 2, style: 5, label: 'Mon espace / connexion', url: siteUrl }
         ] }];
 
         if (!result.linked) {

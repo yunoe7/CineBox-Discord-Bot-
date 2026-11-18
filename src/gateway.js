@@ -219,7 +219,7 @@ async function readWelcomeConfig(guild) {
     }
     const fresh = await configChannel.fetch(true);
     const topic = fresh.topic || '';
-    const marker = 'MOVIX_WELCOME_CONFIG:';
+    const marker = topic.includes('MOVIX_WELCOME_CONFIG:') ? 'MOVIX_WELCOME_CONFIG:' : 'CINEBOX_WELCOME_CONFIG:';
     const index = topic.indexOf(marker);
     if (index === -1) {
       console.warn('MOVIX_WELCOME_CONFIG_NOT_SET', guild.id);

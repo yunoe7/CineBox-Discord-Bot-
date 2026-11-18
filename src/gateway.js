@@ -113,7 +113,7 @@ client.once('clientReady', () => {
   setInterval(() => void syncVipRoles(), VIP_SYNC_INTERVAL_MS).unref();
   client.user.setPresence({
     status: 'online',
-    activities: [{ name: 'Movix 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]
+    activities: [{ name: 'Movix 🍿 • movix.miami', type: ActivityType.Playing }]
   });
 });
 

@@ -48,7 +48,7 @@ const commands = [
     .addBooleanOption(o => o.setName('role-automatique').setDescription('Attribuer automatiquement un rôle à l’arrivée').setRequired(false))
     .addRoleOption(o => o.setName('role-nouveau').setDescription('Rôle à attribuer si le rôle automatique est activé').setRequired(false)),
   new SlashCommandBuilder().setName('reset-movix').setDescription('Supprime la structure Movix après confirmation.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-  new SlashCommandBuilder().setName('mon-compte').setDescription('Vérifie la liaison entre ton compte Discord et CineBox.'),
+  new SlashCommandBuilder().setName('mon-compte').setDescription('Vérifie la liaison entre ton compte Discord et Movix.'),
   new SlashCommandBuilder().setName('vip').setDescription('Consulte ton pass VIP et sa date de validité sur Movix.'),
   new SlashCommandBuilder().setName('ping').setDescription('Vérifie que le bot répond.'),
   new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes Movix.'),

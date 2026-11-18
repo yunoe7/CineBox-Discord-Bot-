@@ -168,7 +168,7 @@ module.exports = async function handler(req, res) {
             const marker = decodeHiddenMarker(message.content || '') + (message.content || '');
             return (marker.includes('[MOVIX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN:' + targetId + ']')) && !marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') && !marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
           });
-          const clearedAt = messages.filter(message => (decodeHiddenMarker(message.content || '') + (message.content || '')).includes('[MOVIX_WARN_CLEAR:' + targetId + ']'))
+          const clearedAt = messages.filter(message => { const marker = decodeHiddenMarker(message.content || '') + (message.content || ''); return marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'); })
             .reduce((max, message) => Math.max(max, Date.parse(message.timestamp) || 0), 0);
           const active = entries.filter(message => (Date.parse(message.timestamp) || 0) > clearedAt);
           const description = active.length

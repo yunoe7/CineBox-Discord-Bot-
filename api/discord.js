@@ -554,7 +554,7 @@ module.exports = async function handler(req, res) {
 
         const account = result.account || {};
         const roleLabels = { admin: 'Administrateur', moderator: 'Modérateur', user: 'Membre' };
-        const vip = account.vip || {};
+        const vip = account.vip || result.vip || {};
         const vipActive = Boolean(vip.active);
         const expiryDate = vip.expiresAt ? new Date(vip.expiresAt) : null;
         const expiryValid = expiryDate && Number.isFinite(expiryDate.getTime());

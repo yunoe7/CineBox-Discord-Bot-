@@ -150,16 +150,16 @@ async function setupGuild(guild) {
   }
 
   const welcome = textChannels['👋•bienvenue'];
-  if (!welcome.topic?.includes('[MOVIX_WELCOME]')) {
+  if (!welcome.topic?.includes('[MOVIX_WELCOME]') && !welcome.topic?.includes('[CINEBOX_WELCOME]')) {
     await welcome.setTopic('[MOVIX_WELCOME] Bienvenue au club ! Présente-toi et découvre la communauté.');
   }
   const rules = textChannels['📜•règlement'];
-  if (rules && !rules.topic?.includes('[MOVIX_RULES]')) {
+  if (rules && !rules.topic?.includes('[MOVIX_RULES]') && !rules.topic?.includes('[CINEBOX_RULES]')) {
     await rules.send({ content: '🎬 **Bienvenue au Club des Cinéphiles Movix !**\n\n1. Respecte chaque membre.\n2. Aucun harcèlement, discrimination ou insultes.\n3. Pas de spam ni de publicité non autorisée.\n4. Utilise les salons adaptés aux discussions.\n5. Attention aux spoilers : préviens et masque-les.\n6. Respecte les décisions de la modération.\n\nEn restant sur le serveur, tu acceptes ces règles. Bon visionnage ! 🍿' });
     await rules.setTopic('[MOVIX_RULES] Règlement officiel du serveur.');
   }
   const discover = textChannels['✨•découvrir-movix'];
-  if (discover && !discover.topic?.includes('[MOVIX_DISCOVER]')) {
+  if (discover && !discover.topic?.includes('[MOVIX_DISCOVER]') && !discover.topic?.includes('[CINEBOX_DISCOVER]')) {
     await discover.send({ content: '✨ **Bienvenue sur Movix !**\n\nRetrouve ici la communauté des passionnés de films et de séries. Présente-toi dans <#' + welcome.id + '>, échange dans les salons thématiques et partage tes recommandations.\n\n📢 Les annonces officielles sont publiées dans <#' + textChannels['📢•actualités-movix'].id + '>.\n🆘 Besoin d’aide ? Rendez-vous dans <#' + textChannels['🆘•besoin-daide'].id + '>.\n\n**Installe-toi, la séance commence !** 🍿' });
     await discover.setTopic('[MOVIX_DISCOVER] Présentation et liens utiles.');
   }

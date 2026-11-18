@@ -99,9 +99,9 @@ module.exports = async function handler(req, res) {
             .replace(/[ \t]+\n/g, '\n').trim().slice(0, 500);
           return '**' + (embed.title || 'Action de modération') + '**\n' + detail + '\n<t:' + Math.floor(new Date(message.timestamp).getTime() / 1000) + ':R>';
         }).join('\n\n') : 'Aucune action de modération enregistrée dans l’historique consulté.';
-        await editOriginal(interaction, { content: '', embeds: [{ title: '🛡️ Journal de modération — 10 dernières actions', description: description.slice(0, 3900), color: 0xd8b45a, footer: { text: 'CINÉBOX • LOGS DE MODÉRATION' }, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '🛡️ Journal de modération — 10 dernières actions', description: description.slice(0, 3900), color: 0xd8b45a, footer: { text: 'MOVIX • LOGS DE MODÉRATION' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
-        console.error('CINEBOX_MODLOGS_FAILED', error?.stack || error);
+        console.error('MOVIX_MODLOGS_FAILED', error?.stack || error);
         await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Journal indisponible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
       }
     })());
@@ -151,8 +151,8 @@ module.exports = async function handler(req, res) {
             for (const message of page) {
               const marker = decodeHiddenMarker(message.content || '');
               const content = message.content || '';
-              if (marker.includes('[CINEBOX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')
-                || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')) {
+              if (marker.includes('[MOVIX_WARN:' + targetId + ']') || marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']')
+                || content.includes('[MOVIX_WARN:' + targetId + ']') || content.includes('[MOVIX_WARN_CLEAR:' + targetId + ']')) {
                 matches.push(message);
               }
             }
@@ -166,15 +166,15 @@ module.exports = async function handler(req, res) {
           const messages = await fetchWarnings();
           const entries = messages.filter(message => {
             const marker = decodeHiddenMarker(message.content || '') + (message.content || '');
-            return marker.includes('[CINEBOX_WARN:' + targetId + ']') && !marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
+            return marker.includes('[MOVIX_WARN:' + targetId + ']') && !marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']');
           });
-          const clearedAt = messages.filter(message => (decodeHiddenMarker(message.content || '') + (message.content || '')).includes('[CINEBOX_WARN_CLEAR:' + targetId + ']'))
+          const clearedAt = messages.filter(message => (decodeHiddenMarker(message.content || '') + (message.content || '')).includes('[MOVIX_WARN_CLEAR:' + targetId + ']'))
             .reduce((max, message) => Math.max(max, Date.parse(message.timestamp) || 0), 0);
           const active = entries.filter(message => (Date.parse(message.timestamp) || 0) > clearedAt);
           const description = active.length
             ? active.slice(0, 15).map((message, index) => {
                 const embed = message.embeds?.[0] || {};
-                return '**' + (index + 1) + '.** ' + (embed.description || message.content).replace('[CINEBOX_WARN:' + targetId + ']', '').slice(0, 300);
+                return '**' + (index + 1) + '.** ' + (embed.description || message.content).replace('[MOVIX_WARN:' + targetId + ']', '').slice(0, 300);
               }).join('\n')
             : 'Aucun avertissement actif enregistré pour ce membre.';
           await editOriginal(interaction, { content: '', embeds: [{ title: '📋 Avertissements de ' + (target.user?.username || targetId), description: '**Total actif :** ' + active.length + '\n\n' + description, color: 0xd8b45a, timestamp: new Date().toISOString() }] });
@@ -184,7 +184,7 @@ module.exports = async function handler(req, res) {
         if (name === 'clear-warnings') {
           const moderatorId = interaction.member.user.id;
           await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: {
-            content: encodeHiddenMarker('[CINEBOX_WARN_CLEAR:' + targetId + ']'),
+            content: encodeHiddenMarker('[MOVIX_WARN_CLEAR:' + targetId + ']'),
             embeds: [{ title: '🧹 Avertissements effacés', description: '**Membre concerné :** <@' + targetId + '>\n**Modérateur :** <@' + moderatorId + '>\n**Motif :** ' + reason + '\n\nLes avertissements actifs de ce membre ont été réinitialisés.', color: 0x57f287, timestamp: new Date().toISOString() }],
             allowed_mentions: { parse: [], users: [targetId, moderatorId] }
           } });
@@ -194,7 +194,7 @@ module.exports = async function handler(req, res) {
 
         if (name === 'warn') {
           await discord('/channels/' + logChannel.id + '/messages', { method: 'POST', body: {
-            content: encodeHiddenMarker('[CINEBOX_WARN:' + targetId + ']'),
+            content: encodeHiddenMarker('[MOVIX_WARN:' + targetId + ']'),
             embeds: [{ title: '⚠️ Avertissement officiel', description: '**Membre :** <@' + targetId + '>\n**Modérateur :** <@' + interaction.member.user.id + '>\n**Motif :** ' + reason, color: 0xd8b45a, timestamp: new Date().toISOString() }],
             allowed_mentions: { parse: [], users: [] }
           } });
@@ -209,12 +209,12 @@ module.exports = async function handler(req, res) {
           await discord('/guilds/' + interaction.guild_id + '/members/' + targetId, { method: 'DELETE' });
           await logBotEvent(interaction.guild_id, '👢 Membre expulsé', '**Membre :** ' + (target.user?.username || targetId) + '\n**Motif :** ' + reason, interaction);
         } else if (name === 'ban') {
-          await discord('/guilds/' + interaction.guild_id + '/bans/' + targetId, { method: 'PUT', body: { delete_message_seconds: 0, reason: ('CinéBox : ' + reason).slice(0, 480) } });
+          await discord('/guilds/' + interaction.guild_id + '/bans/' + targetId, { method: 'PUT', body: { delete_message_seconds: 0, reason: ('Movix : ' + reason).slice(0, 480) } });
           await logBotEvent(interaction.guild_id, '🔨 Membre banni', '**Membre :** ' + (target.user?.username || targetId) + '\n**Motif :** ' + reason, interaction);
         }
         await editOriginal(interaction, { content: '', embeds: [{ title: '✅ Modération effectuée', description: 'Action : **/' + name + '**\nMembre : <@' + targetId + '>\nMotif : ' + reason, color: 0x57f287, timestamp: new Date().toISOString() }] });
       } catch (error) {
-        console.error('CINEBOX_MODERATION_FAILED', name, error?.stack || error);
+        console.error('MOVIX_MODERATION_FAILED', name, error?.stack || error);
         await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Modération impossible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
       }
     })());
@@ -234,7 +234,7 @@ module.exports = async function handler(req, res) {
         const poll = messages.find(message => (message.embeds || []).some(embed =>
           embed.footer?.text?.includes('VOTE COMMUNAUTAIRE') && embed.fields?.length >= 2
         ));
-        if (!poll) throw new Error('Aucun sondage CinéBox actif trouvé dans les 100 derniers messages de ce salon.');
+        if (!poll) throw new Error('Aucun sondage Movix actif trouvé dans les 100 derniers messages de ce salon.');
         if (!(poll.components || []).some(row => (row.components || []).some(component => String(component.custom_id || '').startsWith('cine_vote_') && !component.disabled))) {
           throw new Error('Ce sondage est déjà clôturé.');
         }
@@ -254,7 +254,7 @@ module.exports = async function handler(req, res) {
         embed.description = '**🔒 Sondage clôturé**\n' + result + '\n\n**Total des votes :** ' + total + '\n\n' +
           ranking.map((item, index) => (index + 1) + '. **' + item.name + '** — ' + item.count + (item.count > 1 ? ' voix' : ' voix')).join('\n');
         embed.color = 0x57f287;
-        embed.footer = { text: 'CINÉBOX  •  SONDAGE CLÔTURÉ  •  🍿' };
+        embed.footer = { text: 'MOVIX  •  SONDAGE CLÔTURÉ  •  🍿' };
         const components = (poll.components || []).map(row => ({
           ...row, components: (row.components || []).map(component => ({ ...component, disabled: true, style: 2 }))
         }));
@@ -282,12 +282,12 @@ module.exports = async function handler(req, res) {
     const task = (async () => {
       try {
         const embed = {
-          author: { name: 'CINÉBOX  /  LE CHOIX DE LA COMMUNAUTÉ' },
+          author: { name: 'MOVIX  /  LE CHOIX DE LA COMMUNAUTÉ' },
           title: '🍿 ' + title.slice(0, 240),
           description: 'La communauté choisit la prochaine séance.\n\n**Comment voter ?** Clique sur le bouton correspondant à ton film favori. Le compteur se met à jour sur ce message.\n\n*Un seul vote par membre. Le classement se met à jour après chaque participation.*',
           color: 0xd8b45a,
           fields: films.map((film, index) => ({ name: String(index + 1).padStart(2, '0') + '  /  ' + film.slice(0, 220), value: '🎟️  **0 voix**', inline: true })),
-          footer: { text: 'CINÉBOX  •  VOTE COMMUNAUTAIRE  •  🍿' },
+          footer: { text: 'MOVIX  •  VOTE COMMUNAUTAIRE  •  🍿' },
           timestamp: new Date().toISOString()
         };
         const components = [{ type: 1, components: films.map((film, index) => ({
@@ -296,10 +296,10 @@ module.exports = async function handler(req, res) {
         await discord('/channels/' + interaction.channel_id + '/messages', {
           method: 'POST', body: { content: '🎬 **Nouveau sondage cinéma !**', embeds: [embed], components }
         });
-        await editOriginal(interaction, { content: '', embeds: [{ title: '🍿 Sondage publié !', description: 'Ton sondage est en ligne dans ce salon. Les membres peuvent maintenant choisir leur film préféré.', color: 0x57f287, footer: { text: 'CinéBox • Organisation des séances' }, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '🍿 Sondage publié !', description: 'Ton sondage est en ligne dans ce salon. Les membres peuvent maintenant choisir leur film préféré.', color: 0x57f287, footer: { text: 'Movix • Organisation des séances' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('CINEMA_POLL_CREATE_FAILED', error && error.stack || error);
-        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Publication impossible', description: 'Le sondage n’a pas pu être publié. Vérifie les permissions Voir le salon, Envoyer des messages et Intégrer des liens.', color: 0xed4245, footer: { text: 'CinéBox • Assistance' } }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Publication impossible', description: 'Le sondage n’a pas pu être publié. Vérifie les permissions Voir le salon, Envoyer des messages et Intégrer des liens.', color: 0xed4245, footer: { text: 'Movix • Assistance' } }] });
       }
     })();
     waitUntil(task);
@@ -324,11 +324,11 @@ module.exports = async function handler(req, res) {
       data: {
         flags: EPHEMERAL,
         embeds: [{
-          author: { name: 'CINÉBOX  /  LE HASARD A PARLÉ' },
+          author: { name: 'MOVIX  /  LE HASARD A PARLÉ' },
           title: '🎬 LA SÉANCE EST CHOISIE !',
           description,
           color: 0xd8b45a,
-          footer: { text: 'CINÉBOX  •  LE FILM DU CLUB  •  🍿' },
+          footer: { text: 'MOVIX  •  LE FILM DU CLUB  •  🍿' },
           timestamp: new Date().toISOString()
         }]
       }
@@ -389,8 +389,8 @@ module.exports = async function handler(req, res) {
         const event = await discord('/guilds/' + interaction.guild_id + '/scheduled-events', {
           method: 'POST',
           body: {
-            name: '🍿 CinéBox — ' + film.slice(0, 80),
-            description: (details || 'Une séance cinéma organisée par la communauté CinéBox.') + '\n\nFilm : ' + film,
+            name: '🍿 Movix — ' + film.slice(0, 80),
+            description: (details || 'Une séance cinéma organisée par la communauté Movix.') + '\n\nFilm : ' + film,
             scheduled_start_time: start.toISOString(),
             scheduled_end_time: end.toISOString(),
             privacy_level: 2,
@@ -399,11 +399,11 @@ module.exports = async function handler(req, res) {
           }
         });
         await editOriginal(interaction, { content: '', embeds: [{
-          author: { name: 'CINÉBOX  /  PROGRAMMATION DES SÉANCES' },
+          author: { name: 'MOVIX  /  PROGRAMMATION DES SÉANCES' },
           title: '🍿 La séance est officiellement programmée !',
           description: '**' + film + '**\n\n📅 <t:' + unixStart + ':F>\n⏳ <t:' + unixStart + ':R>\n🔊 <#' + channelId + '>\n\n[Voir l’événement Discord](https://discord.com/events/' + interaction.guild_id + '/' + event.id + ')',
           color: 0x57f287,
-          footer: { text: 'CINÉBOX  •  RENDEZ-VOUS AU CINÉ-CLUB  •  🍿' },
+          footer: { text: 'MOVIX  •  RENDEZ-VOUS AU CINÉ-CLUB  •  🍿' },
           timestamp: new Date().toISOString()
         }] });
       } catch (error) {
@@ -431,11 +431,11 @@ module.exports = async function handler(req, res) {
       try {
         const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
         const configChannel = channels.find(channel => channel.name === '📋•journal-équipe' && channel.type === 0);
-        if (!configChannel) throw new Error('Le salon privé 📋•journal-équipe est introuvable. Lance /setup pour créer la structure CinéBox.');
-        const prefix = 'CINEBOX_WELCOME_CONFIG:';
+        if (!configChannel) throw new Error('Le salon privé 📋•journal-équipe est introuvable. Lance /setup pour créer la structure Movix.');
+        const prefix = 'MOVIX_WELCOME_CONFIG:';
         let current = { welcomeEnabled: false, goodbyeEnabled: false, autoRoleEnabled: false, welcomeChannelId: null, goodbyeChannelId: null, newMemberRoleId: null };
         const topic = configChannel.topic || '';
-        const saved = topic.match(/CINEBOX_WELCOME_CONFIG:(\{[^}]*\})/);
+        const saved = topic.match(/MOVIX_WELCOME_CONFIG:(\{[^}]*\})/);
         if (saved) { try { current = Object.assign(current, JSON.parse(saved[1])); } catch {} }
         const validateChannel = id => !id || channels.some(channel => channel.id === id && channel.type === 0);
         if (welcomeChannelId && !validateChannel(welcomeChannelId)) throw new Error('Le salon de bienvenue doit être un salon textuel de ce serveur.');
@@ -449,12 +449,12 @@ module.exports = async function handler(req, res) {
         if (autoRoleEnabled !== undefined) current.autoRoleEnabled = autoRoleEnabled;
         if (newMemberRoleId !== undefined) current.newMemberRoleId = newMemberRoleId;
         const encoded = prefix + JSON.stringify(current);
-        const otherTopic = topic.replace(/(?:^|\s*)CINEBOX_WELCOME_CONFIG:\{[^}]*\}/, '').trim();
+        const otherTopic = topic.replace(/(?:^|\s*)MOVIX_WELCOME_CONFIG:\{[^}]*\}/, '').trim();
         const nextTopic = [otherTopic, encoded].filter(Boolean).join(' ').slice(0, 1024);
         await discord('/channels/' + configChannel.id, { method: 'PATCH', body: { topic: nextTopic } });
         const channelLabel = id => id ? '<#' + id + '>' : 'Non configuré';
         await editOriginal(interaction, { content: '', embeds: [{
-          author: { name: 'CINÉBOX  /  PARAMÈTRES DU CLUB' },
+          author: { name: 'MOVIX  /  PARAMÈTRES DU CLUB' },
           title: '⚙️ Notifications configurées',
           description: 'Les réglages sont enregistrés dans le salon privé de l’équipe. Rien ne sera publié tant que tu n’actives pas les options correspondantes.',
           color: 0xd8b45a,
@@ -463,11 +463,11 @@ module.exports = async function handler(req, res) {
             { name: '🌙 Départs', value: (current.goodbyeEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\nSalon : ' + channelLabel(current.goodbyeChannelId), inline: true },
             { name: '🍿 Rôle automatique', value: (current.autoRoleEnabled ? '🟢 Activé' : '⚫ Désactivé') + '\nRôle : ' + (current.newMemberRoleId ? '<@&' + current.newMemberRoleId + '>' : 'Non configuré'), inline: true }
           ],
-          footer: { text: 'CINÉBOX  •  CONFIGURATION ADMINISTRATEUR' },
+          footer: { text: 'MOVIX  •  CONFIGURATION ADMINISTRATEUR' },
           timestamp: new Date().toISOString()
         }] });
       } catch (error) {
-        console.error('CINEBOX_WELCOME_CONFIG_FAILED', error && error.stack || error);
+        console.error('MOVIX_WELCOME_CONFIG_FAILED', error && error.stack || error);
         await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Configuration impossible', description: String(error.message || error).slice(0, 900), color: 0xed4245 }] });
       }
     })();
@@ -477,7 +477,7 @@ module.exports = async function handler(req, res) {
 
   if (name === 'reset-cinebox') {
     if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La remise à zéro est réservée aux administrateurs.', color: 0xed4245 });
-    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de CinéBox', description: 'Cette action supprimera les salons, catégories et rôles gérés par CinéBox. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure CinéBox.', color: 0xed4245, footer: { text: 'CINÉBOX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
+    return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [{ title: '⚠️ Remise à zéro de Movix', description: 'Cette action supprimera les salons, catégories et rôles gérés par Movix. Les autres éléments du serveur ne seront pas touchés.\n\n**Cette action est définitive.** Confirme uniquement si tu veux vraiment retirer la structure Movix.', color: 0xed4245, footer: { text: 'MOVIX • CONFIRMATION ADMINISTRATEUR' } }], components: [{ type: 1, components: [{ type: 2, style: 4, custom_id: 'cinebox_reset_confirm', label: 'Tout supprimer' }, { type: 2, style: 2, custom_id: 'cinebox_reset_cancel', label: 'Annuler' }] }] } });
   }
 
   if (name === 'mon-compte' || name === 'vip') {
@@ -492,9 +492,9 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     waitUntil((async () => {
       try {
-        const secret = process.env.CINEBOX_API_SECRET;
+        const secret = process.env.MOVIX_API_SECRET;
         if (!secret) throw new Error('La liaison au site n’est pas encore configurée sur le bot.');
-        const response = await fetch('https://cinebox-a1h.pages.dev/api/internal/discord/member', {
+        const response = await fetch('https://movix.miami/api/internal/discord/member', {
           method: 'POST',
           headers: {
             authorization: 'Bearer ' + secret,
@@ -505,12 +505,12 @@ module.exports = async function handler(req, res) {
         });
         if (!response.ok) {
           if (response.status === 401) throw new Error('La clé de liaison entre le bot et le site est invalide.');
-          throw new Error('Le service de comptes CinéBox est temporairement indisponible (HTTP ' + response.status + ').');
+          throw new Error('Le service de comptes Movix est temporairement indisponible (HTTP ' + response.status + ').');
         }
         const result = await response.json();
-        const siteUrl = 'https://cinebox-a1h.pages.dev/';
+        const siteUrl = 'https://movix.miami/';
         const components = [{ type: 1, components: [
-          { type: 2, style: 5, label: 'Ouvrir CinéBox', url: siteUrl },
+          { type: 2, style: 5, label: 'Ouvrir Movix', url: siteUrl },
           { type: 2, style: 5, label: 'Mon espace / connexion', url: siteUrl + 'connexion' }
         ] }];
 
@@ -518,20 +518,20 @@ module.exports = async function handler(req, res) {
           await editOriginal(interaction, {
             content: '',
             embeds: [{
-              author: { name: isVipCommand ? 'CINÉBOX  /  PASS VIP' : 'CINÉBOX  /  PROFIL MEMBRE' },
+              author: { name: isVipCommand ? 'MOVIX  /  PASS VIP' : 'MOVIX  /  PROFIL MEMBRE' },
               title: isVipCommand ? '🎟️ Ton pass VIP' : '🔗 Ton compte n’est pas encore lié',
               description: isVipCommand
-                ? 'Aucun compte CinéBox n’est associé à ton Discord pour le moment. Lie ton compte pour que le bot puisse vérifier tes avantages VIP.'
-                : 'Ton compte Discord fonctionne, mais il n’est pas encore associé à un compte CinéBox. Connecte-toi au site avec Discord, ou utilise la fonction d’association depuis ton espace si tu possèdes déjà un compte.',
+                ? 'Aucun compte Movix n’est associé à ton Discord pour le moment. Lie ton compte pour que le bot puisse vérifier tes avantages VIP.'
+                : 'Ton compte Discord fonctionne, mais il n’est pas encore associé à un compte Movix. Connecte-toi au site avec Discord, ou utilise la fonction d’association depuis ton espace si tu possèdes déjà un compte.',
               color: 0xd8b45a,
               fields: isVipCommand ? [
                 { name: 'ÉTAT DU PASS', value: '⚪ Non vérifiable — compte non lié', inline: false },
-                { name: 'COMMENT L’ACTIVER ?', value: '1. Ouvre CinéBox.\n2. Connecte-toi avec Discord.\n3. Relance `/vip` pour consulter ton statut.', inline: false }
+                { name: 'COMMENT L’ACTIVER ?', value: '1. Ouvre Movix.\n2. Connecte-toi avec Discord.\n3. Relance `/vip` pour consulter ton statut.', inline: false }
               ] : [
                 { name: 'STATUT', value: 'Compte Discord non associé', inline: true },
-                { name: 'PROCHAINE ÉTAPE', value: 'Connecte-toi à CinéBox avec Discord.', inline: true }
+                { name: 'PROCHAINE ÉTAPE', value: 'Connecte-toi à Movix avec Discord.', inline: true }
               ],
-              footer: { text: 'CINÉBOX  •  TON ESPACE PERSONNEL' },
+              footer: { text: 'MOVIX  •  TON ESPACE PERSONNEL' },
               timestamp: new Date().toISOString()
             }],
             components
@@ -550,26 +550,26 @@ module.exports = async function handler(req, res) {
           : vipActive ? 'Actif — aucune date d’expiration communiquée' : 'Aucun abonnement VIP actif';
         const avatarHash = interaction.user?.avatar || interaction.member?.user?.avatar;
         const avatarUrl = avatarHash ? 'https://cdn.discordapp.com/avatars/' + discordUserId + '/' + avatarHash + '.png?size=256' : undefined;
-        const accountName = String(account.displayName || interaction.user?.global_name || interaction.user?.username || 'Membre CinéBox').slice(0, 100);
+        const accountName = String(account.displayName || interaction.user?.global_name || interaction.user?.username || 'Membre Movix').slice(0, 100);
         const statusValue = vipActive ? '💎 **VIP actif**' : '⚪ **Membre standard**';
 
         if (isVipCommand) {
           await editOriginal(interaction, {
             content: '',
             embeds: [{
-              author: { name: 'CINÉBOX  /  CLUB VIP', icon_url: avatarUrl },
-              title: vipActive ? '👑 Ton pass VIP est actif' : '🎟️ Ton pass CinéBox',
+              author: { name: 'MOVIX  /  CLUB VIP', icon_url: avatarUrl },
+              title: vipActive ? '👑 Ton pass VIP est actif' : '🎟️ Ton pass Movix',
               description: vipActive
-                ? 'Ton compte bénéficie actuellement du statut VIP sur CinéBox. Profite des contenus et avantages réservés aux membres VIP selon les règles du site.'
-                : 'Tu n’as pas de statut VIP actif pour le moment. Tu peux découvrir les offres et gérer ton compte directement sur CinéBox.',
+                ? 'Ton compte bénéficie actuellement du statut VIP sur Movix. Profite des contenus et avantages réservés aux membres VIP selon les règles du site.'
+                : 'Tu n’as pas de statut VIP actif pour le moment. Tu peux découvrir les offres et gérer ton compte directement sur Movix.',
               color: vipActive ? 0xd8b45a : 0x64748b,
               fields: [
                 { name: 'MEMBRE', value: accountName, inline: true },
                 { name: 'STATUT DU PASS', value: statusValue, inline: true },
                 { name: 'VALIDITÉ', value: expiryText, inline: false },
-                { name: 'COMPTE CINÉBOX', value: roleLabels[account.role] || 'Membre', inline: true }
+                { name: 'COMPTE MOVIX', value: roleLabels[account.role] || 'Membre', inline: true }
               ],
-              footer: { text: 'CINÉBOX  •  VÉRIFICATION EN DIRECT DU SITE' },
+              footer: { text: 'MOVIX  •  VÉRIFICATION EN DIRECT DU SITE' },
               timestamp: new Date().toISOString()
             }],
             components
@@ -580,24 +580,24 @@ module.exports = async function handler(req, res) {
         await editOriginal(interaction, {
           content: '',
           embeds: [{
-            author: { name: 'CINÉBOX  /  PROFIL MEMBRE', icon_url: avatarUrl },
+            author: { name: 'MOVIX  /  PROFIL MEMBRE', icon_url: avatarUrl },
             title: '🎬 ' + accountName,
-            description: 'Voici ta carte personnelle CinéBox. Les informations sont récupérées directement depuis ton compte lié.',
+            description: 'Voici ta carte personnelle Movix. Les informations sont récupérées directement depuis ton compte lié.',
             color: vipActive ? 0xd8b45a : 0x5865f2,
             thumbnail: avatarUrl ? { url: avatarUrl } : undefined,
             fields: [
               { name: '🎟️ STATUT DU COMPTE', value: roleLabels[account.role] || 'Membre', inline: true },
               { name: '👑 PASS VIP', value: statusValue, inline: true },
               { name: '📅 VALIDITÉ VIP', value: expiryText, inline: false },
-              { name: '🔗 COMPTE LIÉ', value: 'Discord associé à ton compte CinéBox', inline: false }
+              { name: '🔗 COMPTE LIÉ', value: 'Discord associé à ton compte Movix', inline: false }
             ],
-            footer: { text: 'CINÉBOX  •  TON PROFIL PERSONNEL' },
+            footer: { text: 'MOVIX  •  TON PROFIL PERSONNEL' },
             timestamp: new Date().toISOString()
           }],
           components
         });
       } catch (error) {
-        console.error('CINEBOX_ACCOUNT_LOOKUP_FAILED', error?.stack || error);
+        console.error('MOVIX_ACCOUNT_LOOKUP_FAILED', error?.stack || error);
         await editOriginal(interaction, {
           content: '',
           embeds: [{
@@ -620,7 +620,7 @@ module.exports = async function handler(req, res) {
     const memory = process.memoryUsage();
     const mb = value => (value / 1024 / 1024).toFixed(1) + ' Mo';
     return embedReply(res, {
-      author: { name: 'CINÉBOX  /  SYSTÈME DE PROJECTION' },
+      author: { name: 'MOVIX  /  SYSTÈME DE PROJECTION' },
       title: '🎬 CONTRÔLE DE PROJECTION',
       description: '## 🟢 Endpoint opérationnel\nCette commande confirme que l’API d’interactions répond. Les métriques ci-dessous concernent ce processus API, pas la connexion Gateway Railway.',
       color: 0x57f287,
@@ -633,7 +633,7 @@ module.exports = async function handler(req, res) {
         { name: 'NODE.JS', value: process.version, inline: true },
         { name: 'PROCHAINE ÉTAPE', value: 'Choisis un film avec `/sondage-cinema` ou lance un tirage avec `/tirage-cinema`.' }
       ],
-      footer: { text: 'CINÉBOX  •  SYSTÈME OPÉRATIONNEL  •  🍿' },
+      footer: { text: 'MOVIX  •  SYSTÈME OPÉRATIONNEL  •  🍿' },
       timestamp: new Date().toISOString()
     });
   }
@@ -642,27 +642,27 @@ module.exports = async function handler(req, res) {
     data: {
       flags: EPHEMERAL,
       embeds: [{
-        author: { name: 'CINÉBOX  /  LE CLUB DES CINÉPHILES' },
+        author: { name: 'MOVIX  /  LE CLUB DES CINÉPHILES' },
         title: '🎟️ TON PASS POUR LA PROCHAINE SÉANCE',
-        description: 'Bienvenue dans ton espace de contrôle CinéBox.\nExplore les outils du club, organise les soirées et partage ta passion du cinéma.\n\n*Une commande, et la séance commence.*',
+        description: 'Bienvenue dans ton espace de contrôle Movix.\nExplore les outils du club, organise les soirées et partage ta passion du cinéma.\n\n*Une commande, et la séance commence.*',
         color: 0xd8b45a,
         fields: [
           { name: '🛡️  MODÉRATION', value: '`/warn` · `/warnings` · `/clear-warnings`\nGère et consulte les avertissements.\n\n`/timeout` · `/untimeout` · `/kick` · `/ban`\nApplique les actions de modération selon tes permissions.\n\n`/modlogs`\nConsulte les dernières actions de modération.\n\n`/cloturer-sondage`\nFerme le sondage du salon.', inline: false },
-          { name: '⚙️  ADMINISTRATION', value: '`/config-accueil`\nConfigure les messages de bienvenue et de départ.\n\n`/reset-cinebox`\nRetire la structure CinéBox après confirmation *(administrateurs)*.', inline: false },
+          { name: '⚙️  ADMINISTRATION', value: '`/config-accueil`\nConfigure les messages de bienvenue et de départ.\n\n`/reset-cinebox`\nRetire la structure Movix après confirmation *(administrateurs)*.', inline: false },
           { name: '🍿  À L’AFFICHE', value: '`/sondage-cinema`\nLance un vote communautaire pour choisir le prochain film.\n\n`/tirage-cinema`\nLaisse le hasard décider entre plusieurs films.\n\n`/recommandation-cinema`\nTrouve un film selon ton genre et ton humeur.\n\n`/quiz-cinema`\nTeste tes connaissances avec un quiz interactif.', inline: false },
-          { name: '🎟️  TON ESPACE CINÉBOX', value: '`/mon-compte`\nAffiche ta carte de profil et les informations de ton compte lié.\n\n`/vip`\nConsulte ton statut VIP et sa date de validité.', inline: false },
+          { name: '🎟️  TON ESPACE MOVIX', value: '`/mon-compte`\nAffiche ta carte de profil et les informations de ton compte lié.\n\n`/vip`\nConsulte ton statut VIP et sa date de validité.', inline: false },
           { name: '🎭  LA COMMUNAUTÉ', value: '`/suggestion`\nPartage une idée pour faire évoluer le club.\n\n`/signaler`\nTransmets un bug ou un problème à l’équipe.', inline: false },
-          { name: '🎬  ORGANISATION DU CLUB', value: '`/programmer-seance`\nCrée un événement officiel dans un salon vocal *(permission Créer des événements)*.\n\n`/ping`\nVérifie que CinéBox répond.\n\n`/setup`\nInstalle ou répare les salons et les rôles *(administrateurs)*.', inline: false }
+          { name: '🎬  ORGANISATION DU CLUB', value: '`/programmer-seance`\nCrée un événement officiel dans un salon vocal *(permission Créer des événements)*.\n\n`/ping`\nVérifie que Movix répond.\n\n`/setup`\nInstalle ou répare les salons et les rôles *(administrateurs)*.', inline: false }
         ],
-        footer: { text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' },
+        footer: { text: 'MOVIX  •  LE CLUB DES CINÉPHILES  •  🍿' },
         timestamp: new Date().toISOString()
       }]
     }
   });
 
   if (name === 'setup') {
-    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La configuration du serveur est réservée aux administrateurs.', color: 0xed4245, footer: { text: 'CinéBox • Permissions' } });
-    if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'CinéBox ne dispose pas de tous les paramètres nécessaires. Préviens un administrateur.', color: 0xed4245 });
+    if (!hasPermission(interaction.member?.permissions, PERM.ADMIN)) return embedReply(res, { title: '🔒 Accès réservé', description: 'La configuration du serveur est réservée aux administrateurs.', color: 0xed4245, footer: { text: 'Movix • Permissions' } });
+    if (!process.env.DISCORD_TOKEN || !interaction.guild_id) return embedReply(res, { title: '⚠️ Configuration incomplète', description: 'Movix ne dispose pas de tous les paramètres nécessaires. Préviens un administrateur.', color: 0xed4245 });
     res.status(200).json({ type: 5, data: { flags: EPHEMERAL } });
     console.log('SETUP_START', interaction.guild_id);
     const task = (async () => {
@@ -673,8 +673,8 @@ module.exports = async function handler(req, res) {
           const filled = Math.round(percent / 10);
           const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
           const progressEmbed = {
-            author: { name: 'CINÉBOX  /  CONFIGURATION DU CLUB' },
-            title: '🎬 INSTALLATION DE CINÉBOX',
+            author: { name: 'MOVIX  /  CONFIGURATION DU CLUB' },
+            title: '🎬 INSTALLATION DE MOVIX',
             description: bar + ' **' + percent + '%**\n\n' + (state.label || 'Préparation en cours…'),
             color: 0xd8b45a,
             fields: [
@@ -682,7 +682,7 @@ module.exports = async function handler(req, res) {
               { name: 'Créés', value: String(state.created), inline: true },
               { name: 'Vérifiés', value: String(state.checked), inline: true }
             ],
-            footer: { text: 'CINÉBOX  •  MISE EN PLACE DE VOTRE ESPACE  •  🍿' },
+            footer: { text: 'MOVIX  •  MISE EN PLACE DE VOTRE ESPACE  •  🍿' },
             timestamp: new Date().toISOString()
           };
           console.log('SETUP_PROGRESS', JSON.stringify(state));
@@ -691,12 +691,12 @@ module.exports = async function handler(req, res) {
         });
         const details = result.created.length ? result.created.map(x => '• ' + x).join('\n') : 'Tout était déjà en place : aucun doublon créé.';
         console.log('SETUP_SUCCESS', result);
-        await editOriginal(interaction, { content: '', embeds: [{ author: { name: 'CINÉBOX  /  CONFIGURATION TERMINÉE' },
-          title: '✨ VOTRE SERVEUR EST PRÊT !', description: 'La structure du club a été installée avec succès. Place à la communauté ! 🍿', color: 0x57f287, fields: [{ name: 'Éléments créés', value: String(result.created.length), inline: true }, { name: 'Rôles', value: String(result.roles), inline: true }, { name: 'Salons texte', value: String(result.textChannels), inline: true }, { name: 'Salons vocaux', value: String(result.voiceChannels), inline: true }, { name: 'Détails', value: details.slice(0, 1000) }], footer: { text: 'CINÉBOX  •  BIENVENUE DANS LE CLUB  •  🍿' }, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ author: { name: 'MOVIX  /  CONFIGURATION TERMINÉE' },
+          title: '✨ VOTRE SERVEUR EST PRÊT !', description: 'La structure du club a été installée avec succès. Place à la communauté ! 🍿', color: 0x57f287, fields: [{ name: 'Éléments créés', value: String(result.created.length), inline: true }, { name: 'Rôles', value: String(result.roles), inline: true }, { name: 'Salons texte', value: String(result.textChannels), inline: true }, { name: 'Salons vocaux', value: String(result.voiceChannels), inline: true }, { name: 'Détails', value: details.slice(0, 1000) }], footer: { text: 'MOVIX  •  BIENVENUE DANS LE CLUB  •  🍿' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('SETUP_FAILED', error && error.stack || error);
-        await editOriginal(interaction, { content: '', embeds: [{ author: { name: 'CINÉBOX  /  ASSISTANCE TECHNIQUE' },
-          title: '⚠️ INSTALLATION INTERROMPUE', description: 'CinéBox n’a pas pu terminer la configuration.\n\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'CINÉBOX  •  ASSISTANCE ADMINISTRATEUR' },
+        await editOriginal(interaction, { content: '', embeds: [{ author: { name: 'MOVIX  /  ASSISTANCE TECHNIQUE' },
+          title: '⚠️ INSTALLATION INTERROMPUE', description: 'Movix n’a pas pu terminer la configuration.\n\n`' + String(error.message || error).slice(0, 700) + '`', color: 0xed4245, footer: { text: 'MOVIX  •  ASSISTANCE ADMINISTRATEUR' },
           timestamp: new Date().toISOString() }] });
       }
     })();
@@ -735,7 +735,7 @@ module.exports = async function handler(req, res) {
             timestamp: new Date().toISOString()
           }]
         }});
-        await editOriginal(interaction, { content: '', embeds: [{ title: report ? '🐛 Signalement transmis' : '💡 Suggestion envoyée', description: report ? 'Merci de nous avoir prévenus. L’équipe CinéBox pourra examiner ton signalement.' : 'Merci de contribuer à faire évoluer CinéBox. Ton idée a bien été transmise à l’équipe.', color: 0x57f287, footer: { text: 'CinéBox • Merci pour ta participation' }, timestamp: new Date().toISOString() }] });
+        await editOriginal(interaction, { content: '', embeds: [{ title: report ? '🐛 Signalement transmis' : '💡 Suggestion envoyée', description: report ? 'Merci de nous avoir prévenus. L’équipe Movix pourra examiner ton signalement.' : 'Merci de contribuer à faire évoluer Movix. Ton idée a bien été transmise à l’équipe.', color: 0x57f287, footer: { text: 'Movix • Merci pour ta participation' }, timestamp: new Date().toISOString() }] });
       } catch (error) {
         console.error('Message delivery failed:', error && error.stack || error);
         await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Transmission échouée', description: 'Ta demande n’a pas pu être transmise. Réessaie dans quelques instants ou contacte un membre de l’équipe.', color: 0xed4245 }] });
@@ -842,7 +842,7 @@ function buildRecommendationEmbed(genre, mood) {
   const moodNames = { detente: 'Détente', frissons: 'Frissons', evasion: 'Évasion', emotion: 'Émotion', reflexion: 'Réflexion', surprise: 'Surprise' };
   const genreNames = { tous: 'Tous les genres', aventure: 'Aventure', animation: 'Animation', comedie: 'Comédie', drame: 'Drame', 'science-fiction': 'Science-fiction', thriller: 'Thriller' };
   return {
-    author: { name: 'CINÉBOX  /  SÉLECTION DU CLUB' },
+    author: { name: 'MOVIX  /  SÉLECTION DU CLUB' },
     title: '🎬  ' + movie.title,
     description: movie.synopsis + '\n\n**Pourquoi le regarder ?**\n' + movie.pitch,
     color: 0xd8b45a,
@@ -851,9 +851,9 @@ function buildRecommendationEmbed(genre, mood) {
       { name: '⏱️  DURÉE', value: movie.duration + ' min', inline: true },
       { name: '🎭  GENRE', value: genreNames[genre] || 'Tous les genres', inline: true },
       { name: '✨  AMBIANCE', value: moodNames[mood] || 'Surprise', inline: true },
-      { name: '🎟️  LE CONSEIL CINÉBOX', value: 'Installe-toi, prépare le pop-corn et profite de la séance.', inline: false }
+      { name: '🎟️  LE CONSEIL MOVIX', value: 'Installe-toi, prépare le pop-corn et profite de la séance.', inline: false }
     ],
-    footer: { text: 'CINÉBOX  •  TA PROCHAINE PÉPITE  •  🍿  |  Une autre suggestion ?' },
+    footer: { text: 'MOVIX  •  TA PROCHAINE PÉPITE  •  🍿  |  Une autre suggestion ?' },
     timestamp: new Date().toISOString()
   };
 }
@@ -872,7 +872,7 @@ async function handleCinemaComponent(interaction, res) {
   if (recoMatch) return res.status(200).json({ type: 7, data: { embeds: [buildRecommendationEmbed(recoMatch[1], recoMatch[2])], components: buildRecommendationComponents(recoMatch[1], recoMatch[2]) } });
   if (customId.startsWith('cine_quiz_')) return handleCinemaQuiz(interaction, res);
   if (customId.startsWith('cine_vote_')) return handleCinemaVote(interaction, res);
-  return res.status(200).json({ type: 4, data: { content: 'Cette interaction CinéBox n’est plus reconnue. Relance la commande concernée.', flags: EPHEMERAL } });
+  return res.status(200).json({ type: 4, data: { content: 'Cette interaction Movix n’est plus reconnue. Relance la commande concernée.', flags: EPHEMERAL } });
 }
 
 
@@ -897,36 +897,36 @@ async function handleCineboxReset(interaction, res) {
       '📋•journal-équipe','🔊・Le Grand Salon','🔊・Séance privée','🔊・After Movie'
     ];
     const managedRoles = [
-      '👑 Fondateur','💎 VIP CinéBox','🛡️ Modérateur','🎬 Cinéphile',
-      '🍿 Nouveau membre','🤝 Ami de CinéBox','🌟 Ami fidèle','🎟️ Invité du ciné-club'
+      '👑 Fondateur','💎 VIP Movix','🛡️ Modérateur','🎬 Cinéphile',
+      '🍿 Nouveau membre','🤝 Ami de Movix','🌟 Ami fidèle','🎟️ Invité du ciné-club'
     ];
     try {
-      console.log('CINEBOX_RESET_START', guildId);
+      console.log('MOVIX_RESET_START', guildId);
       const channels = await discord('/guilds/' + guildId + '/channels');
       let deletedChannels = 0;
       for (const channel of channels.filter(item => managedChannels.includes(item.name))) {
         await discord('/channels/' + channel.id, { method: 'DELETE' });
         deletedChannels++;
-        console.log('CINEBOX_RESET_CHANNEL_DELETED', channel.name);
+        console.log('MOVIX_RESET_CHANNEL_DELETED', channel.name);
       }
       let deletedCategories = 0;
       for (const category of channels.filter(item => item.type === 4 && managedCategories.includes(item.name))) {
         await discord('/channels/' + category.id, { method: 'DELETE' });
         deletedCategories++;
-        console.log('CINEBOX_RESET_CATEGORY_DELETED', category.name);
+        console.log('MOVIX_RESET_CATEGORY_DELETED', category.name);
       }
       const roles = await discord('/guilds/' + guildId + '/roles');
       let deletedRoles = 0;
       for (const role of roles.filter(item => managedRoles.includes(item.name))) {
         await discord('/guilds/' + guildId + '/roles/' + role.id, { method: 'DELETE' });
         deletedRoles++;
-        console.log('CINEBOX_RESET_ROLE_DELETED', role.name);
+        console.log('MOVIX_RESET_ROLE_DELETED', role.name);
       }
-      console.log('CINEBOX_RESET_SUCCESS', { deletedChannels, deletedCategories, deletedRoles });
-      await editOriginal(interaction, { content: '', embeds: [{ title: '🧹 Structure CinéBox supprimée', description: 'La remise à zéro est terminée.\n\n• ' + deletedChannels + ' salons supprimés\n• ' + deletedCategories + ' catégories supprimées\n• ' + deletedRoles + ' rôles supprimés\n\nLes autres éléments du serveur ont été conservés.', color: 0x57f287, footer: { text: 'CINÉBOX • REMISE À ZÉRO TERMINÉE' }, timestamp: new Date().toISOString() }] });
+      console.log('MOVIX_RESET_SUCCESS', { deletedChannels, deletedCategories, deletedRoles });
+      await editOriginal(interaction, { content: '', embeds: [{ title: '🧹 Structure Movix supprimée', description: 'La remise à zéro est terminée.\n\n• ' + deletedChannels + ' salons supprimés\n• ' + deletedCategories + ' catégories supprimées\n• ' + deletedRoles + ' rôles supprimés\n\nLes autres éléments du serveur ont été conservés.', color: 0x57f287, footer: { text: 'MOVIX • REMISE À ZÉRO TERMINÉE' }, timestamp: new Date().toISOString() }] });
     } catch (error) {
-      console.error('CINEBOX_RESET_FAILED', error && error.stack || error);
-      await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Remise à zéro incomplète', description: 'Une erreur est survenue. Les éléments déjà supprimés le restent.\n\n' + String(error.message || error).slice(0, 700), color: 0xed4245, footer: { text: 'CINÉBOX • ASSISTANCE ADMINISTRATEUR' } }] });
+      console.error('MOVIX_RESET_FAILED', error && error.stack || error);
+      await editOriginal(interaction, { content: '', embeds: [{ title: '⚠️ Remise à zéro incomplète', description: 'Une erreur est survenue. Les éléments déjà supprimés le restent.\n\n' + String(error.message || error).slice(0, 700), color: 0xed4245, footer: { text: 'MOVIX • ASSISTANCE ADMINISTRATEUR' } }] });
     }
   })();
   waitUntil(task);
@@ -934,11 +934,11 @@ async function handleCineboxReset(interaction, res) {
 function buildQuizQuestionEmbed(questionIndex) {
   const question = CINEMA_QUIZ[questionIndex];
   return {
-    author: { name: 'CINÉBOX  /  LE QUIZ DU CLUB' },
+    author: { name: 'MOVIX  /  LE QUIZ DU CLUB' },
     title: '🎬 Question de culture cinéma',
     description: '**' + question.question + '**\n\n*Quatre propositions. Une seule bonne réponse. À toi de jouer !*',
     color: 0xd8b45a,
-    footer: { text: 'CINÉBOX  •  QUIZ CINÉMA  •  QUESTION_' + questionIndex + '  •  🍿' },
+    footer: { text: 'MOVIX  •  QUIZ CINÉMA  •  QUESTION_' + questionIndex + '  •  🍿' },
     timestamp: new Date().toISOString()
   };
 }
@@ -984,12 +984,12 @@ function handleCinemaQuiz(interaction, res) {
     type: 7,
     data: {
       embeds: [{
-        author: { name: 'CINÉBOX  /  RÉSULTAT DU QUIZ' },
+        author: { name: 'MOVIX  /  RÉSULTAT DU QUIZ' },
         title: won ? '🏆 BRAVO, CINÉPHILE !' : '🎬 BIEN TENTÉ !',
         description: (won ? '**Bonne réponse ! 1 / 1 point**' : '**Mauvaise réponse. 0 / 1 point**') + '\n\n**La bonne réponse :** ' + question.answers[correct] + '\n\n' + question.explanation,
         color: won ? 0x57f287 : 0xed4245,
         fields: [{ name: 'TON RÉSULTAT', value: won ? '🏆 1 / 1' : '🎬 0 / 1', inline: true }, { name: 'TA RÉPONSE', value: question.answers[selected], inline: true }],
-        footer: { text: 'CINÉBOX  •  RÉPONSE VALIDÉE  •  🍿' },
+        footer: { text: 'MOVIX  •  RÉPONSE VALIDÉE  •  🍿' },
         timestamp: new Date().toISOString()
       }],
       components: [{ type: 1, components: buttons }, { type: 1, components: [{ type: 2, style: 1, custom_id: 'cine_quiz_next', label: '🎲 Question suivante' }] }]
@@ -1036,9 +1036,9 @@ function isValidDiscordSignature(rawBody, signature, timestamp, publicKey) {
 function reply(res, content) { return res.status(200).json({ type: 4, data: { content, flags: EPHEMERAL } }); }
 function embedReply(res, embed) {
   const polished = Object.assign({
-    author: { name: 'CINÉBOX  /  LE CLUB DES CINÉPHILES' },
+    author: { name: 'MOVIX  /  LE CLUB DES CINÉPHILES' },
     color: 0xd8b45a,
-    footer: { text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' },
+    footer: { text: 'MOVIX  •  LE CLUB DES CINÉPHILES  •  🍿' },
     timestamp: new Date().toISOString()
   }, embed || {});
   return res.status(200).json({ type: 4, data: { flags: EPHEMERAL, embeds: [polished] } });
@@ -1046,7 +1046,7 @@ function embedReply(res, embed) {
 
 
 // Messages automatiques de bienvenue et de départ (service Gateway Railway).
-const CINEBOX_SITE = 'https://cinebox-a1h.pages.dev/';
+const MOVIX_SITE = 'https://movix.miami/';
 
 function buildWelcomePayload(member, welcomeChannelId, memberCount) {
   const user = member.user || member;
@@ -1056,16 +1056,16 @@ function buildWelcomePayload(member, welcomeChannelId, memberCount) {
     channel_id: welcomeChannelId,
     content: '🍿 **Un nouveau cinéphile rejoint la salle !**',
     embeds: [{
-      author: { name: 'CINÉBOX  /  BIENVENUE AU CLUB' },
+      author: { name: 'MOVIX  /  BIENVENUE AU CLUB' },
       title: '🎬 Bienvenue ' + tag + ' !',
-      description: 'Installe-toi confortablement, la séance va commencer.\n\nTu viens de rejoindre **CinéBox**, le club des passionnés de films et de séries. Présente-toi, échange tes découvertes et trouve ton prochain coup de cœur.\n\n🌐 [Découvrir le site CinéBox](' + CINEBOX_SITE + ')',
+      description: 'Installe-toi confortablement, la séance va commencer.\n\nTu viens de rejoindre **Movix**, le club des passionnés de films et de séries. Présente-toi, échange tes découvertes et trouve ton prochain coup de cœur.\n\n🌐 [Découvrir le site Movix](' + MOVIX_SITE + ')',
       color: 0xd8b45a,
       thumbnail: { url: user.displayAvatarURL ? user.displayAvatarURL({ extension: 'png', size: 256 }) : undefined },
       fields: [
         { name: '🍿 PREMIERS PAS', value: '👋 Présente-toi dans <#WELCOME_CHANNEL_ID>\n📜 Lis le règlement\n💬 Rejoins les discussions cinéma', inline: false },
         { name: '🎟️ MEMBRE', value: count > 0 ? 'Tu es notre **' + count + (count === 1 ? 'er' : 'e') + ' cinéphile** !' : 'Bienvenue dans la communauté !', inline: true }
       ],
-      footer: { text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' },
+      footer: { text: 'MOVIX  •  LE CLUB DES CINÉPHILES  •  🍿' },
       timestamp: new Date().toISOString()
     }]
   };
@@ -1078,13 +1078,13 @@ function buildGoodbyePayload(member, goodbyeChannelId, memberCount) {
     channel_id: goodbyeChannelId,
     content: '🌙 **Une place se libère dans notre salle…**',
     embeds: [{
-      author: { name: 'CINÉBOX  /  À BIENTÔT' },
+      author: { name: 'MOVIX  /  À BIENTÔT' },
       title: '🎞️ ' + tag + ' quitte le ciné-club',
-      description: 'Merci d’avoir partagé un bout de l’aventure **CinéBox** avec nous.\n\nLes portes du club te resteront toujours ouvertes. À une prochaine séance, et prends soin de toi ! 🍿\n\n🌐 [Retrouver CinéBox](' + CINEBOX_SITE + ')',
+      description: 'Merci d’avoir partagé un bout de l’aventure **Movix** avec nous.\n\nLes portes du club te resteront toujours ouvertes. À une prochaine séance, et prends soin de toi ! 🍿\n\n🌐 [Retrouver Movix](' + MOVIX_SITE + ')',
       color: 0x64748b,
       thumbnail: { url: user.displayAvatarURL ? user.displayAvatarURL({ extension: 'png', size: 256 }) : undefined },
       fields: [{ name: '👥 LA COMMUNAUTÉ', value: Number(memberCount || 0) > 0 ? 'Il reste **' + memberCount + ' membres** dans le club.' : 'La séance continue pour la communauté.', inline: true }],
-      footer: { text: 'CINÉBOX  •  MERCI POUR TON PASSAGE  •  🍿' },
+      footer: { text: 'MOVIX  •  MERCI POUR TON PASSAGE  •  🍿' },
       timestamp: new Date().toISOString()
     }]
   };
@@ -1099,7 +1099,7 @@ async function handleCineboxMemberJoin(member) {
   const welcomeChannel = process.env.WELCOME_CHANNEL_ID;
   const roleId = process.env.NEW_MEMBER_ROLE_ID;
   if (roleId) {
-    try { await member.roles.add(roleId, 'Bienvenue dans le club CinéBox'); }
+    try { await member.roles.add(roleId, 'Bienvenue dans le club Movix'); }
     catch (error) { console.error('WELCOME_ROLE_FAILED', error); }
   }
   if (!welcomeChannel) return;
@@ -1129,20 +1129,20 @@ async function setupGuild(guildId, onProgress) {
   const defs = [
     { name: '👑 Fondateur', color: 0xf1c75b, hoist: true },
     { name: '🔧 Administrateur', color: 0xe67e22, hoist: true },
-    { name: '💎 VIP CinéBox', color: 0xd8b4fe, hoist: true },
+    { name: '💎 VIP Movix', color: 0xd8b4fe, hoist: true },
     { name: '🛡️ Modérateur', color: 0x60a5fa, hoist: true },
     { name: '🎬 Cinéphile', color: 0xe5c76b, hoist: false },
     { name: '🍿 Nouveau membre', color: 0x9ca3af, hoist: false },
-    { name: '🤝 Ami de CinéBox', color: 0x78c6a3, hoist: false },
+    { name: '🤝 Ami de Movix', color: 0x78c6a3, hoist: false },
     { name: '🌟 Ami fidèle', color: 0xf4a7c4, hoist: false },
     { name: '🎟️ Invité du ciné-club', color: 0x8bb8e8, hoist: false }
   ];
   const groups = [
-    { name: '01 • LE GRAND ÉCRAN', channels: [['👋•bienvenue','Bienvenue au club ! Présente-toi et découvre la communauté.'],['📢•actualités-cinébox','Les annonces et actualités officielles de CinéBox.'],['📜•règlement','Les règles pour que tout le monde profite du serveur.'],['✨•découvrir-cinébox','Découvre CinéBox et les liens utiles.']] },
+    { name: '01 • LE GRAND ÉCRAN', channels: [['👋•bienvenue','Bienvenue au club ! Présente-toi et découvre la communauté.'],['📢•actualités-cinébox','Les annonces et actualités officielles de Movix.'],['📜•règlement','Les règles pour que tout le monde profite du serveur.'],['✨•découvrir-cinébox','Découvre Movix et les liens utiles.']] },
     { name: '02 • LE FOYER DES CINÉPHILES', channels: [['💬•le-salon','Le salon général de la communauté.'],['🎞️•discussions-films','Parlons cinéma et dernières sorties.'],['📺•discussions-séries','Vos séries du moment et vos théories.'],['🍿•soirée-cinéma','Organisons les prochaines soirées cinéma.'],['❤️•coups-de-cœur','Vos pépites et coups de cœur.'],['🔎•que-regarder','Besoin d’une recommandation ? Demande ici.']] },
     { name: '03 • LE CLUB VIP', channels: [['🌟•espace-vip','Un espace réservé aux membres VIP et à l’équipe.'],['🏆•membres-à-la-une','Les membres et contributions à l’honneur.'],['🎁•surprises','Surprises et événements spéciaux.']] },
     { name: '04 • ASSISTANCE & AMÉLIORATIONS', channels: [['🆘•besoin-daide','Une question ? La communauté et l’équipe sont là.'],['🐛•signaler-un-bug','Utilise /signaler pour transmettre un problème.'],['💡•boîte-à-idées','Utilise /suggestion pour proposer une idée.'],['🚀•nouveautés-à-venir','Les nouveautés et améliorations à venir.']] },
-    { name: '05 • LES COULISSES (PRIVÉ)', private: true, channels: [['👑•direction','Espace privé de direction.'],['🛡️•modération','Coordination de la modération.'],['📋・logs-bot','Journal automatique des commandes, interactions et événements CinéBox.'], ['🧪•tests-cinébox','Tests internes du serveur et du site.'],['📋•journal-équipe','Suivi des actions de l’équipe.']] }
+    { name: '05 • LES COULISSES (PRIVÉ)', private: true, channels: [['👑•direction','Espace privé de direction.'],['🛡️•modération','Coordination de la modération.'],['📋・logs-bot','Journal automatique des commandes, interactions et événements Movix.'], ['🧪•tests-cinébox','Tests internes du serveur et du site.'],['📋•journal-équipe','Suivi des actions de l’équipe.']] }
   ];
   const voiceNames = ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊・After Movie'];
   const total = defs.length + groups.reduce((n, g) => n + 1 + g.channels.length, 0) + 1 + voiceNames.length + 2;
@@ -1183,7 +1183,7 @@ async function setupGuild(guildId, onProgress) {
   ];
   const vip = [
     { id: guildId, type: 0, deny: PERM.VIEW },
-    { id: roleIds['💎 VIP CinéBox'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
+    { id: roleIds['💎 VIP Movix'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['👑 Fondateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['🔧 Administrateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY) },
     { id: roleIds['🛡️ Modérateur'], type: 0, allow: bitset(PERM.VIEW, PERM.SEND, PERM.HISTORY, PERM.MANAGE_MESSAGES) }
@@ -1197,7 +1197,7 @@ async function setupGuild(guildId, onProgress) {
       if (channel) {
         const renamed = await discord('/channels/' + channel.id, { method: 'PATCH', body: { name } });
         Object.assign(channel, renamed);
-        console.log('CINEBOX_CHANNEL_RENAMED', legacyName, '->', name);
+        console.log('MOVIX_CHANNEL_RENAMED', legacyName, '->', name);
       }
     }
     let wasCreated = false;
@@ -1234,17 +1234,17 @@ async function setupGuild(guildId, onProgress) {
   const voiceCategory = await getOrCreate('06 • SALONS VOCAUX', 4, null, {});
   for (const name of voiceNames) await getOrCreate(name, 2, voiceCategory.id, {});
   const rules = textMap['📜•règlement'];
-  if (rules && !(rules.topic || '').includes('[CINEBOX_RULES]')) {
-    await discord('/channels/' + rules.id + '/messages', { method: 'POST', body: { content: '🎬 **Bienvenue au Club des Cinéphiles CinéBox !**\n\n1. Respecte chaque membre.\n2. Aucun harcèlement, discrimination ou insultes.\n3. Pas de spam ni de publicité non autorisée.\n4. Utilise les salons adaptés aux discussions.\n5. Attention aux spoilers : préviens et masque-les.\n6. Respecte les décisions de la modération.\n\nEn restant sur le serveur, tu acceptes ces règles. Bon visionnage ! 🍿' } });
-    await discord('/channels/' + rules.id, { method: 'PATCH', body: { topic: '[CINEBOX_RULES] Règlement officiel du serveur.' } });
+  if (rules && !(rules.topic || '').includes('[MOVIX_RULES]')) {
+    await discord('/channels/' + rules.id + '/messages', { method: 'POST', body: { content: '🎬 **Bienvenue au Club des Cinéphiles Movix !**\n\n1. Respecte chaque membre.\n2. Aucun harcèlement, discrimination ou insultes.\n3. Pas de spam ni de publicité non autorisée.\n4. Utilise les salons adaptés aux discussions.\n5. Attention aux spoilers : préviens et masque-les.\n6. Respecte les décisions de la modération.\n\nEn restant sur le serveur, tu acceptes ces règles. Bon visionnage ! 🍿' } });
+    await discord('/channels/' + rules.id, { method: 'PATCH', body: { topic: '[MOVIX_RULES] Règlement officiel du serveur.' } });
   }
   await progress('Finalisation', 'Règlement', false);
   const discover = textMap['✨•découvrir-cinébox'];
-  if (discover && !(discover.topic || '').includes('[CINEBOX_DISCOVER]')) {
+  if (discover && !(discover.topic || '').includes('[MOVIX_DISCOVER]')) {
     const welcomeId = textMap['👋•bienvenue'].id, newsId = textMap['📢•actualités-cinébox'].id, helpId = textMap['🆘•besoin-daide'].id;
-    const content = '✨ **Bienvenue sur CinéBox !**\n\nRetrouve ici la communauté des passionnés de films et de séries. Présente-toi dans <#' + welcomeId + '>, échange dans les salons thématiques et partage tes recommandations.\n\n📢 Les annonces officielles sont publiées dans <#' + newsId + '>.\n🆘 Besoin d’aide ? Rendez-vous dans <#' + helpId + '>.\n\n**Installe-toi, la séance commence !** 🍿';
+    const content = '✨ **Bienvenue sur Movix !**\n\nRetrouve ici la communauté des passionnés de films et de séries. Présente-toi dans <#' + welcomeId + '>, échange dans les salons thématiques et partage tes recommandations.\n\n📢 Les annonces officielles sont publiées dans <#' + newsId + '>.\n🆘 Besoin d’aide ? Rendez-vous dans <#' + helpId + '>.\n\n**Installe-toi, la séance commence !** 🍿';
     await discord('/channels/' + discover.id + '/messages', { method: 'POST', body: { content } });
-    await discord('/channels/' + discover.id, { method: 'PATCH', body: { topic: '[CINEBOX_DISCOVER] Présentation et liens utiles.' } });
+    await discord('/channels/' + discover.id, { method: 'PATCH', body: { topic: '[MOVIX_DISCOVER] Présentation et liens utiles.' } });
   }
   await progress('Finalisation', 'Message de présentation', false);
   return { created, roles: defs.length, textChannels: Object.keys(textMap).length, voiceChannels: voiceNames.length };
@@ -1272,7 +1272,7 @@ async function logBotEvent(guildId, title, detail, interaction) {
       .replace(/\r\n/g, '\n').replace(/\n/g, '\n').replace(/\r/g, '\n')
       .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
     await discord('/channels/' + channel.id + '/messages', { method: 'POST', body: { embeds: [{
-      author: { name: '🍿  CINÉBOX  •  JOURNAL DU BOT' },
+      author: { name: '🍿  MOVIX  •  JOURNAL DU BOT' },
       title: String(title || 'Événement du bot').slice(0, 240),
       description: cleanDetail || 'Aucun détail supplémentaire.',
       color: style.color,
@@ -1280,12 +1280,12 @@ async function logBotEvent(guildId, title, detail, interaction) {
         { name: '🏷️ Catégorie', value: style.category, inline: true },
         { name: '👤 Membre', value: (username + (user.id ? '\nID : ' + user.id : '')).slice(0, 1024), inline: true },
         { name: '📍 Salon', value: interaction?.channel_id ? '<#' + interaction.channel_id + '>' : 'Non disponible', inline: true },
-        { name: '🛡️ Source', value: 'Action via commande CinéBox', inline: true }
+        { name: '🛡️ Source', value: 'Action via commande Movix', inline: true }
       ],
-      footer: { text: 'CINÉBOX  •  JOURNAL SYSTÈME' },
+      footer: { text: 'MOVIX  •  JOURNAL SYSTÈME' },
       timestamp: new Date().toISOString()
     }], allowed_mentions: { parse: [], users: [], roles: [], replied_user: false } } });
-  } catch (error) { console.error('CINEBOX_BOT_LOG_FAILED', error?.stack || error); }
+  } catch (error) { console.error('MOVIX_BOT_LOG_FAILED', error?.stack || error); }
 }
 
 async function discord(path, options) {

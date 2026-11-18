@@ -4,10 +4,10 @@ const interactionHandler = require('../api/discord');
 const { Client, GatewayIntentBits, EmbedBuilder, ActivityType, PermissionsBitField } = require('discord.js');
 
 const { DISCORD_TOKEN } = process.env;
-if (!DISCORD_TOKEN) throw new Error('DISCORD_TOKEN est requis pour le service Gateway CinéBox.');
+if (!DISCORD_TOKEN) throw new Error('DISCORD_TOKEN est requis pour le service Gateway Movix.');
 
 const SITE_URL = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\/+$/, '') + '/';
-const MOVIX_API_URL = (process.env.MOVIX_API_URL || SITE_URL).replace(/\/+$/, '');
+const MOVIX_API_URL = (process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\/+$/, '');
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages]
 });
@@ -38,7 +38,7 @@ async function sendBotLog(guild, title, description, color = 0xd8b45a) {
       .replace(/[ \t]+\n/g, '\n').trim().slice(0, 3000);
     await channel.send({
       embeds: [{
-        author: { name: '🍿  CINÉBOX  •  JOURNAL DU BOT', icon_url: client.user.displayAvatarURL() },
+        author: { name: '🍿  MOVIX  •  JOURNAL DU BOT', icon_url: client.user.displayAvatarURL() },
         title: String(title || 'Événement du bot').slice(0, 240),
         description: detail || 'Aucun détail supplémentaire.',
         color: style.color,
@@ -47,13 +47,13 @@ async function sendBotLog(guild, title, description, color = 0xd8b45a) {
           { name: '📍 Serveur', value: String(guild.name || 'Serveur inconnu').slice(0, 100), inline: true },
           { name: '🧾 Type', value: 'Événement automatique', inline: true }
         ],
-        footer: { text: 'CINÉBOX  •  JOURNAL SYSTÈME' },
+        footer: { text: 'MOVIX  •  JOURNAL SYSTÈME' },
         timestamp: new Date().toISOString()
       }],
       allowedMentions: { parse: [], users: [], roles: [], repliedUser: false }
     });
   } catch (error) {
-    console.error('CINEBOX_BOT_LOG_SEND_FAILED', error?.stack || error);
+    console.error('MOVIX_BOT_LOG_SEND_FAILED', error?.stack || error);
   }
 }
 
@@ -62,14 +62,14 @@ let vipSyncRunning = false;
 
 async function syncVipRoles() {
   const roleId = process.env.VIP_ROLE_ID;
-  const secret = process.env.MOVIX_DISCORD_SYNC_SECRET;
+  const secret = process.env.MOVIX_DISCORD_SYNC_SECRET || process.env.CINEBOX_API_SECRET;
   if (!roleId || !secret || vipSyncRunning) return;
   vipSyncRunning = true;
   try {
     for (const guild of client.guilds.cache.values()) {
       const role = await guild.roles.fetch(roleId).catch(() => null);
       if (!role) {
-        console.warn('CINEBOX_VIP_ROLE_NOT_FOUND', guild.id);
+        console.warn('MOVIX_VIP_ROLE_NOT_FOUND', guild.id);
         continue;
       }
       const members = await guild.members.fetch();
@@ -94,26 +94,26 @@ async function syncVipRoles() {
           else if (!shouldHaveRole && hasRole) await member.roles.remove(roleId, 'Statut VIP Movix absent ou expiré');
           checked++;
         } catch (error) {
-          console.error('CINEBOX_VIP_MEMBER_SYNC_FAILED', member.id, error?.message || error);
+          console.error('MOVIX_VIP_MEMBER_SYNC_FAILED', member.id, error?.message || error);
         }
       }
-      console.log('CINEBOX_VIP_SYNC_COMPLETE', guild.id, { checked });
+      console.log('MOVIX_VIP_SYNC_COMPLETE', guild.id, { checked });
     }
   } catch (error) {
-    console.error('CINEBOX_VIP_SYNC_FAILED', error?.stack || error);
+    console.error('MOVIX_VIP_SYNC_FAILED', error?.stack || error);
   } finally {
     vipSyncRunning = false;
   }
 }
 
 client.once('clientReady', () => {
-  console.log('CINEBOX_GATEWAY_READY ' + client.user.tag);
-  for (const guild of client.guilds.cache.values()) void sendBotLog(guild, '🟢 Bot démarré', 'CinéBox est connecté à Discord.');
+  console.log('MOVIX_GATEWAY_READY ' + client.user.tag);
+  for (const guild of client.guilds.cache.values()) void sendBotLog(guild, '🟢 Bot démarré', 'Movix est connecté à Discord.');
   void syncVipRoles();
   setInterval(() => void syncVipRoles(), VIP_SYNC_INTERVAL_MS).unref();
   client.user.setPresence({
     status: 'online',
-    activities: [{ name: 'CinéBox 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]
+    activities: [{ name: 'Movix 🍿 • cinebox-a1h.pages.dev', type: ActivityType.Playing }]
   });
 });
 
@@ -189,7 +189,7 @@ client.on('messageCreate', async message => {
     const reason = repeatDetected
       ? repeatedCount + ' messages identiques en 15 secondes'
       : timestamps.length + ' messages en 7 secondes';
-    console.warn('CINEBOX_ANTISPAM_MESSAGE_DELETED', {
+    console.warn('MOVIX_ANTISPAM_MESSAGE_DELETED', {
       guildId: message.guild.id, userId: message.author.id, channelId: message.channel.id,
       messagesInWindow: timestamps.length, repeatedCount
     });
@@ -197,7 +197,7 @@ client.on('messageCreate', async message => {
       '**Membre :** <@' + message.author.id + '>\n**Salon :** <#' + message.channel.id + '>\n' +
       '**Détection :** ' + reason + '\n**Action :** dernier message supprimé, aucune sanction automatique.', 0xed4245);
   } catch (error) {
-    console.error('CINEBOX_ANTISPAM_DELETE_FAILED', {
+    console.error('MOVIX_ANTISPAM_DELETE_FAILED', {
       guildId: message.guild.id, userId: message.author.id, channelId: message.channel.id, error: error?.stack || error
     });
     void sendBotLog(message.guild, '⚠️ Anti-spam : suppression impossible',
@@ -208,29 +208,31 @@ client.on('messageCreate', async message => {
 async function readWelcomeConfig(guild) {
   try {
     // Force a fresh read: setup/configuration may have changed after the bot started.
+    const configChannelId = process.env.WELCOME_CONFIG_CHANNEL_ID;
     const configChannel = await guild.channels.fetch().then(channels =>
-      channels.find(channel => channel.name === '📋•journal-équipe' && channel.isTextBased()) || null
+      (configChannelId && channels.get(configChannelId)) ||
+      channels.find(channel => channel.isTextBased() && ['📋•journal-équipe', '📋・journal-équipe', '📋-journal-équipe'].includes(channel.name)) || null
     );
     if (!configChannel) {
-      console.warn('CINEBOX_WELCOME_CONFIG_CHANNEL_MISSING', guild.id);
+      console.warn('MOVIX_WELCOME_CONFIG_CHANNEL_MISSING', guild.id);
       return null;
     }
     const fresh = await configChannel.fetch(true);
     const topic = fresh.topic || '';
-    const marker = 'CINEBOX_WELCOME_CONFIG:';
+    const marker = 'MOVIX_WELCOME_CONFIG:';
     const index = topic.indexOf(marker);
     if (index === -1) {
-      console.warn('CINEBOX_WELCOME_CONFIG_NOT_SET', guild.id);
+      console.warn('MOVIX_WELCOME_CONFIG_NOT_SET', guild.id);
       return null;
     }
     const raw = topic.slice(index + marker.length).trim();
     const match = raw.match(/^(\{.*\})$/);
     if (!match) {
-      console.error('CINEBOX_WELCOME_CONFIG_INVALID_FORMAT', guild.id);
+      console.error('MOVIX_WELCOME_CONFIG_INVALID_FORMAT', guild.id);
       return null;
     }
     const config = JSON.parse(match[1]);
-    console.log('CINEBOX_WELCOME_CONFIG_LOADED', guild.id, {
+    console.log('MOVIX_WELCOME_CONFIG_LOADED', guild.id, {
       welcomeEnabled: Boolean(config.welcomeEnabled),
       welcomeChannelConfigured: Boolean(config.welcomeChannelId),
       goodbyeEnabled: Boolean(config.goodbyeEnabled),
@@ -238,7 +240,7 @@ async function readWelcomeConfig(guild) {
     });
     return config;
   } catch (error) {
-    console.error('CINEBOX_WELCOME_CONFIG_READ_FAILED', error?.stack || error);
+    console.error('MOVIX_WELCOME_CONFIG_READ_FAILED', error?.stack || error);
     return null;
   }
 }
@@ -272,7 +274,7 @@ function trackRaidJoin(member) {
   antiRaidAlertAt.set(guildId, now);
 
   const accountAgeDays = Math.floor((now - member.user.createdTimestamp) / 86400000);
-  console.warn('CINEBOX_ANTIRAID_BURST', {
+  console.warn('MOVIX_ANTIRAID_BURST', {
     guildId,
     joinsInWindow: recent.length,
     windowSeconds: ANTIRAID_WINDOW_MS / 1000,
@@ -293,63 +295,63 @@ function trackRaidJoin(member) {
 
 client.on('guildMemberAdd', async member => {
   trackRaidJoin(member);
-  console.log('CINEBOX_MEMBER_JOIN ' + member.user.id);
+  console.log('MOVIX_MEMBER_JOIN ' + member.user.id);
   void sendBotLog(member.guild, '👋 Nouveau membre', '**' + (member.user.tag || member.user.username) + '** a rejoint le serveur.\nID : ' + member.id);
   try {
     const config = await readWelcomeConfig(member.guild);
     if (!config) {
-      console.warn('CINEBOX_WELCOME_SKIPPED_NO_CONFIG', member.guild.id);
+      console.warn('MOVIX_WELCOME_SKIPPED_NO_CONFIG', member.guild.id);
       return;
     }
     if (config.autoRoleEnabled && config.newMemberRoleId) {
       const role = await member.guild.roles.fetch(config.newMemberRoleId).catch(error => {
-        console.error('CINEBOX_WELCOME_ROLE_FETCH_FAILED', error?.message || error);
+        console.error('MOVIX_WELCOME_ROLE_FETCH_FAILED', error?.message || error);
         return null;
       });
       if (role) {
-        await member.roles.add(role, 'Rôle automatique configuré par un administrateur CinéBox');
-        console.log('CINEBOX_WELCOME_ROLE_ASSIGNED', member.id, role.id);
+        await member.roles.add(role, 'Rôle automatique configuré par un administrateur Movix');
+        console.log('MOVIX_WELCOME_ROLE_ASSIGNED', member.id, role.id);
       } else {
-        console.warn('CINEBOX_WELCOME_ROLE_NOT_FOUND', config.newMemberRoleId);
+        console.warn('MOVIX_WELCOME_ROLE_NOT_FOUND', config.newMemberRoleId);
       }
     }
     if (!config.welcomeEnabled) {
-      console.warn('CINEBOX_WELCOME_DISABLED', member.guild.id);
+      console.warn('MOVIX_WELCOME_DISABLED', member.guild.id);
       return;
     }
     if (!config.welcomeChannelId) {
-      console.warn('CINEBOX_WELCOME_CHANNEL_NOT_CONFIGURED', member.guild.id);
+      console.warn('MOVIX_WELCOME_CHANNEL_NOT_CONFIGURED', member.guild.id);
       return;
     }
     const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(error => {
-      console.error('CINEBOX_WELCOME_CHANNEL_FETCH_FAILED', config.welcomeChannelId, error?.message || error);
+      console.error('MOVIX_WELCOME_CHANNEL_FETCH_FAILED', config.welcomeChannelId, error?.message || error);
       return null;
     });
     if (!channel || !channel.isTextBased() || !channel.isSendable()) {
-      console.error('CINEBOX_WELCOME_CHANNEL_UNAVAILABLE', config.welcomeChannelId);
+      console.error('MOVIX_WELCOME_CHANNEL_UNAVAILABLE', config.welcomeChannelId);
       return;
     }
     const embed = new EmbedBuilder()
       .setColor(0xd8b45a)
-      .setAuthor({ name: 'CINÉBOX  /  BIENVENUE AU CLUB' })
+      .setAuthor({ name: 'MOVIX  /  BIENVENUE AU CLUB' })
       .setTitle('🎬 Bienvenue ' + (member.user.globalName || member.user.username) + ' !')
       .setDescription(
         'Installe-toi confortablement, la séance va commencer. 🍿\n\n' +
-        'Tu rejoins **CinéBox**, le club des passionnés de films et de séries. ' +
+        'Tu rejoins **Movix**, le club des passionnés de films et de séries. ' +
         'Présente-toi et découvre les salons du serveur.\n\n' +
-        '🌐 [Découvrir le site CinéBox](' + SITE_URL + ')'
+        '🌐 [Découvrir le site Movix](' + SITE_URL + ')'
       )
       .setThumbnail(member.user.displayAvatarURL({ extension: 'png', size: 256 }))
       .addFields(
         { name: '🎟️ TON PASS', value: 'Membre **n°' + member.guild.memberCount + '** du club', inline: true },
         { name: '🍿 À TOI DE JOUER', value: 'Dis-nous quel film tu pourrais revoir 100 fois !', inline: true }
       )
-      .setFooter({ text: 'CINÉBOX  •  LE CLUB DES CINÉPHILES  •  🍿' })
+      .setFooter({ text: 'MOVIX  •  LE CLUB DES CINÉPHILES  •  🍿' })
       .setTimestamp();
     const sent = await channel.send({ content: '✨ <@' + member.id + '> rejoint le ciné-club !', embeds: [embed] });
-    console.log('CINEBOX_WELCOME_SENT', member.id, channel.id, sent.id);
+    console.log('MOVIX_WELCOME_SENT', member.id, channel.id, sent.id);
   } catch (error) {
-    console.error('CINEBOX_WELCOME_ERROR', member.id, error?.stack || error);
+    console.error('MOVIX_WELCOME_ERROR', member.id, error?.stack || error);
     void sendBotLog(member.guild, '⚠️ Échec du message de bienvenue',
       'Impossible de publier le message pour <@' + member.id + '>. Vérifie les permissions du bot dans le salon de bienvenue.\n' +
       String(error?.message || error).slice(0, 700), 0xed4245);
@@ -357,7 +359,7 @@ client.on('guildMemberAdd', async member => {
 });
 
 client.on('guildMemberRemove', async member => {
-  console.log('CINEBOX_MEMBER_LEAVE ' + member.user.id);
+  console.log('MOVIX_MEMBER_LEAVE ' + member.user.id);
   void sendBotLog(member.guild, '🌙 Départ d’un membre', '**' + (member.user.tag || member.user.username) + '** a quitté le serveur.\nID : ' + member.id, 0x64748b);
   try {
     const config = await readWelcomeConfig(member.guild);
@@ -366,21 +368,21 @@ client.on('guildMemberRemove', async member => {
     if (!channel || !channel.isTextBased()) return;
     const embed = new EmbedBuilder()
       .setColor(0x64748b)
-      .setAuthor({ name: 'CINÉBOX  /  À BIENTÔT' })
+      .setAuthor({ name: 'MOVIX  /  À BIENTÔT' })
       .setTitle('🌙 Une place se libère dans la salle…')
       .setDescription(
         '**' + member.user.username + '** quitte le club.\n\n' +
-        'Merci d’avoir partagé un bout de l’aventure CinéBox avec nous. ' +
+        'Merci d’avoir partagé un bout de l’aventure Movix avec nous. ' +
         'Les portes du ciné-club te resteront ouvertes. À une prochaine séance ! 🍿\n\n' +
-        '🌐 [Retrouver CinéBox](' + SITE_URL + ')'
+        '🌐 [Retrouver Movix](' + SITE_URL + ')'
       )
       .setThumbnail(member.user.displayAvatarURL({ extension: 'png', size: 256 }))
       .addFields({ name: '👥 COMMUNAUTÉ', value: 'Il reste **' + member.guild.memberCount + ' membres** dans le club.', inline: true })
-      .setFooter({ text: 'CINÉBOX  •  MERCI POUR TON PASSAGE  •  🍿' })
+      .setFooter({ text: 'MOVIX  •  MERCI POUR TON PASSAGE  •  🍿' })
       .setTimestamp();
     await channel.send({ embeds: [embed] });
   } catch (error) {
-    console.error('CINEBOX_GOODBYE_ERROR', error);
+    console.error('MOVIX_GOODBYE_ERROR', error);
   }
 });
 
@@ -400,16 +402,16 @@ const interactionServer = createServer((req, res) => {
     send(payload) { res.end(payload); }
   };
   interactionHandler(req, response).catch(error => {
-    console.error('CINEBOX_INTERACTION_ERROR', error && error.stack || error);
+    console.error('MOVIX_INTERACTION_ERROR', error && error.stack || error);
     if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
     if (!res.writableEnded) res.end('Internal Server Error');
   });
 });
 interactionServer.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => {
-  console.log('CINEBOX_INTERACTIONS_HTTP_READY port=' + (process.env.PORT || 3000));
+  console.log('MOVIX_INTERACTIONS_HTTP_READY port=' + (process.env.PORT || 3000));
 });
 
 client.login(DISCORD_TOKEN).catch(error => {
-  console.error('CINEBOX_GATEWAY_LOGIN_FAILED', error);
+  console.error('MOVIX_GATEWAY_LOGIN_FAILED', error);
   process.exit(1);
 });

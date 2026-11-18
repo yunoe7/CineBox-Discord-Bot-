@@ -1,92 +1,76 @@
-# CinéBox Discord Bot
+# Movix Discord Bot
 
-Bot Discord du club CinéBox. Le projet combine une API d'interactions Discord et un service Gateway persistant.
+Bot officiel de la communauté **Movix**. Il relie le serveur Discord au site Movix tout en conservant les outils communautaires : modération, sondages, quiz, recommandations et événements cinéma.
 
 ## Architecture
 
-- **API HTTP** : reçoit les commandes slash et les clics sur les composants via `/api/discord`.
-- **Gateway Railway** : gère les événements de membres et les protections déclenchées par les messages (anti-spam et anti-raid).
-- **Stockage des sondages** : les votes sont conservés dans un fichier JSON sur le volume Railway monté sur `/data`. Pour que ce stockage soit utilisé, Discord doit envoyer les interactions au serveur Railway (et non à la fonction Vercel).
+- **API d'interactions** : reçoit les commandes slash et les clics sur les boutons via `/interactions`.
+- **Gateway Railway** : écoute les arrivées/départs, applique l'anti-spam et l'anti-raid, synchronise les rôles VIP et publie les journaux.
+- **Votes** : conservés dans `/data/cinema-polls.json` sur le volume persistant Railway.
 
-Les deux services sont complémentaires : l'API gère les interactions, tandis que le Gateway écoute les événements temps réel du serveur.
+Le Gateway et l'API HTTP doivent utiliser le même service Railway si les interactions de vote doivent partager le stockage `/data`.
 
-## Variables d'environnement
+## Variables Railway
 
-### API d'interactions
-
-- `DISCORD_PUBLIC_KEY` : clé publique de l'application Discord.
-- `DISCORD_TOKEN` : token du bot, à conserver uniquement comme secret.
+### Communes / Discord
+- `DISCORD_TOKEN` : token privé du bot.
 - `CLIENT_ID` : identifiant de l'application Discord.
-- `GUILD_ID` : identifiant du serveur pour l'enregistrement des commandes.
+- `DISCORD_PUBLIC_KEY` : clé publique utilisée pour vérifier les signatures des interactions.
+- `GUILD_ID` : facultatif, pour enregistrer les commandes sur un seul serveur pendant les tests.
+
+### Intégration Movix
+- `MOVIX_SITE_URL` : URL publique du site (défaut : `https://movix.miami`).
+- `MOVIX_API_URL` : URL de l'API principale (défaut : `https://main-api-production-1590f478.up.railway.app`).
+- `MOVIX_DISCORD_SYNC_SECRET` : secret partagé avec l'API Movix pour vérifier les comptes et synchroniser les rôles VIP.
+- `VIP_ROLE_ID` : identifiant du rôle Discord attribué aux comptes VIP actifs.
+- `WELCOME_CONFIG_CHANNEL_ID` : facultatif, identifiant du salon privé où la configuration des arrivées/départs est stockée.
+
+Le même secret doit être configuré dans le service **Main API Movix** sous `MOVIX_DISCORD_SYNC_SECRET`. Pendant la transition, le bot accepte aussi l'ancien nom `CINEBOX_API_SECRET`, mais il est recommandé de migrer vers le nom Movix. Ne jamais publier ce secret.
+
+### Autres options
 - `REPORT_CHANNEL_ID` : salon de signalement (facultatif).
 - `SUGGESTION_CHANNEL_ID` : salon de suggestions (facultatif).
-- `CINEMA_POLL_STORE` : chemin du fichier de votes (facultatif, défaut `/data/cinema-polls.json`).
-
-### Gateway Railway
-
-- `DISCORD_TOKEN` : token du bot.
-- `WELCOME_CHANNEL_ID` : salon de bienvenue (facultatif).
-- `GOODBYE_CHANNEL_ID` : salon de départ (facultatif, utilise le salon de bienvenue par défaut).
-- `NEW_MEMBER_ROLE_ID` : rôle à attribuer à l'arrivée (facultatif).
-- `INTRO_CHANNEL_ID` et `RULES_CHANNEL_ID` : salons à mentionner dans le message de bienvenue (facultatifs).
-
-Ne jamais publier de token dans GitHub ou dans une conversation. Si un token est exposé, le réinitialiser dans le Developer Portal Discord puis mettre à jour les secrets des services concernés.
+- `CINEMA_POLL_STORE` : chemin du stockage des votes (défaut : `/data/cinema-polls.json`).
+- `WELCOME_CHANNEL_ID`, `GOODBYE_CHANNEL_ID`, `NEW_MEMBER_ROLE_ID` : options facultatives historiques ; la configuration interactive est gérée par `/config-accueil`.
 
 ## Commandes
 
-### Cinéma
-- `/sondage-cinema` : publie un vote avec 2 à 4 films. Un membre ne peut voter qu'une fois par sondage ; les votes sont sauvegardés sur le volume Railway.
-- `/cloturer-sondage` : ferme le sondage le plus récent du salon et publie le classement final.
-- `/tirage-cinema` : tire au sort un film parmi 2 à 4 propositions.
-- `/recommandation-cinema` : recommande un film selon le genre et l'ambiance.
-- `/quiz-cinema` : lance une question de culture cinéma interactive.
-- `/programmer-seance` : crée un événement Discord lié à un salon vocal, à une date et une heure Europe/Paris.
+### Compte Movix
+- `/mon-compte` : vérifie la liaison Discord et affiche le profil lié.
+- `/vip` : consulte le statut VIP et sa validité.
+- Le Gateway vérifie périodiquement les statuts VIP et ajuste le rôle configuré.
 
-### Communauté
-- `/signaler` : transmet un problème à l'équipe.
-- `/suggestion` : transmet une idée à l'équipe.
-- `/help` : affiche le guide des commandes.
-- `/ping` : vérifie que l'API répond et affiche les métriques de son propre processus.
+### Communauté cinéma
+- `/sondage-cinema` et `/cloturer-sondage` : votes communautaires persistés.
+- `/tirage-cinema` : tirage au sort d'un film.
+- `/recommandation-cinema` : suggestion selon le genre et l'ambiance.
+- `/quiz-cinema` : quiz interactif.
+- `/programmer-seance` : événement Discord planifié.
 
-### Modération et administration
-- `/warn`, `/warnings`, `/clear-warnings` : gère les avertissements.
-- `/timeout`, `/untimeout`, `/kick`, `/ban` : actions de modération soumises aux permissions Discord et à la hiérarchie des rôles.
-- `/modlogs` : consulte les dernières actions consignées dans le salon de logs.
-- `/setup` : installe ou répare les rôles, catégories et salons (administrateurs).
-- `/config-accueil` : configure les notifications d'arrivée et de départ.
-- `/reset-cinebox` : retire la structure CinéBox après confirmation (administrateurs).
+### Assistance et modération
+- `/signaler`, `/suggestion`, `/help`, `/ping`.
+- `/warn`, `/warnings`, `/clear-warnings`, `/timeout`, `/untimeout`, `/kick`, `/ban`, `/modlogs`.
+- `/setup` : installe ou répare la structure Movix.
+- `/config-accueil` : configure les messages d'arrivée/départ et le rôle automatique.
+- `/reset-movix` : commande de remise à zéro historique, à utiliser avec une extrême prudence.
 
 ## Déploiement
 
-### API
+1. Installer les dépendances : `npm ci`.
+2. Vérifier la syntaxe : `npm run check`.
+3. Enregistrer les commandes : `npm run register`.
+4. Démarrer le service : `npm start` (ou `npm run start:gateway` si le démarrage doit enregistrer les commandes avant le Gateway).
+5. Dans le portail développeur Discord, définir l'URL d'interactions sur l'URL publique Railway suivie de `/interactions`.
+6. Monter un volume Railway sur `/data` pour conserver les votes après redémarrage.
 
-Le service Railway exécute à la fois le Gateway Discord et le serveur HTTP d'interactions. Les commandes sont enregistrées avec `npm run register` au démarrage. Les variables `DISCORD_TOKEN`, `DISCORD_PUBLIC_KEY`, `CLIENT_ID` et éventuellement `GUILD_ID` doivent être configurées sur Railway.
+Activer l'intent privilégié **Server Members Intent** dans le portail Discord. Le bot doit disposer des permissions adaptées pour lire les salons, envoyer des messages, gérer les messages, gérer les membres selon les commandes, créer des événements et attribuer le rôle VIP. Le rôle du bot doit être placé au-dessus du rôle VIP et du rôle automatique.
 
-Dans le Developer Portal Discord, règle **Interactions Endpoint URL** sur l'URL Railway suivante :
+## Migration depuis CinéBox
 
-```
-https://cinebox-discord-bot-production.up.railway.app/interactions
-```
+Le code accepte encore l'ancien secret `CINEBOX_API_SECRET` et les anciens marqueurs de configuration d'accueil/avertissements afin de ne pas perdre les réglages et journaux existants. La commande de configuration crée désormais les marqueurs Movix. Le setup renomme le rôle VIP et les salons historiques reconnus au lieu de créer un doublon.
 
-Cette URL est importante : elle dirige les clics de vote vers le même service Railway que celui qui possède le volume `/data`. L'endpoint Vercel `/api/discord` ne doit pas être utilisé pour les interactions tant que le stockage des votes repose sur ce volume.
+**Important :** ne lance pas `/setup` ou `/reset-movix` en production sans vérifier au préalable la structure et les permissions du serveur. Le setup peut créer/renommer des rôles et salons. La commande reset est destructive.
 
-### Gateway
+## Sécurité
 
-Créer un service Railway depuis ce dépôt et utiliser :
-
-```bash
-npm run start:gateway
-```
-
-Ajouter `DISCORD_TOKEN` et les identifiants de salons/rôle nécessaires. Activer l'intent privilégié **Server Members Intent** dans le Developer Portal Discord. Le bot doit avoir les permissions nécessaires pour consulter les salons, envoyer des messages et attribuer le rôle d'accueil ; son rôle doit être placé au-dessus du rôle attribué automatiquement.
-
-### Stockage des votes
-
-Le serveur d'interactions Railway et le fichier de votes partagent le même service et le même volume persistant monté dans `/data`. Le chemin peut être personnalisé avec `CINEMA_POLL_STORE`. Vercel ne partage pas ce volume : ne configure pas l'endpoint Discord vers Vercel sans migrer auparavant les votes vers une base accessible depuis Vercel.
-
-## Limites à connaître
-
-- Les compteurs et classements des sondages sont reconstruits depuis les votes persistés ; les anciens sondages créés avant l'activation de la persistance ne disposent pas de données de vote récupérables.
-- `/ping` mesure le processus API qui traite la commande ; il ne mesure pas directement l'uptime ni la latence du Gateway Railway.
-- Les recommandations utilisent un catalogue de films intégré au code et non une base externe.
-- Les événements de messages et de membres nécessitent que le service Gateway Railway soit démarré et connecté.
+Ne jamais committer de token Discord ni de secret d'intégration. Si un token est exposé, le révoquer dans le portail développeur Discord et remplacer le secret Railway correspondant.

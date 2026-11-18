@@ -113,7 +113,10 @@ client.once('clientReady', () => {
   setInterval(() => void syncVipRoles(), VIP_SYNC_INTERVAL_MS).unref();
   client.user.setPresence({
     status: 'online',
-    activities: [{ name: 'Custom Status', state: 'Développement de Movix 🛠️', type: ActivityType.Custom }]
+    activities: [
+      { name: 'Développement de Movix 🛠️', type: ActivityType.Playing },
+      { name: 'Custom Status', state: 'Développement de Movix 🛠️', type: ActivityType.Custom }
+    ]
   });
 });
 

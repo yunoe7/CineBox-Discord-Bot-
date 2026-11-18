@@ -152,7 +152,7 @@ module.exports = async function handler(req, res) {
               const marker = decodeHiddenMarker(message.content || '');
               const content = message.content || '';
               if (marker.includes('[MOVIX_WARN:' + targetId + ']') || marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') || marker.includes('[CINEBOX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')
-                || content.includes('[MOVIX_WARN:' + targetId + ']') || content.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']') {
+                || content.includes('[MOVIX_WARN:' + targetId + ']') || content.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') || content.includes('[CINEBOX_WARN:' + targetId + ']') || content.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']')) {
                 matches.push(message);
               }
             }
@@ -166,7 +166,7 @@ module.exports = async function handler(req, res) {
           const messages = await fetchWarnings();
           const entries = messages.filter(message => {
             const marker = decodeHiddenMarker(message.content || '') + (message.content || '');
-            return marker.includes('[MOVIX_WARN:' + targetId + ']') && !marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']');
+            return (marker.includes('[MOVIX_WARN:' + targetId + ']') || marker.includes('[CINEBOX_WARN:' + targetId + ']')) && !marker.includes('[MOVIX_WARN_CLEAR:' + targetId + ']') && !marker.includes('[CINEBOX_WARN_CLEAR:' + targetId + ']');
           });
           const clearedAt = messages.filter(message => (decodeHiddenMarker(message.content || '') + (message.content || '')).includes('[MOVIX_WARN_CLEAR:' + targetId + ']'))
             .reduce((max, message) => Math.max(max, Date.parse(message.timestamp) || 0), 0);
@@ -174,7 +174,7 @@ module.exports = async function handler(req, res) {
           const description = active.length
             ? active.slice(0, 15).map((message, index) => {
                 const embed = message.embeds?.[0] || {};
-                return '**' + (index + 1) + '.** ' + (embed.description || message.content).replace('[MOVIX_WARN:' + targetId + ']', '').slice(0, 300);
+                return '**' + (index + 1) + '.** ' + (embed.description || message.content).replace('[MOVIX_WARN:' + targetId + ']', '').replace('[CINEBOX_WARN:' + targetId + ']', '').slice(0, 300);
               }).join('\n')
             : 'Aucun avertissement actif enregistré pour ce membre.';
           await editOriginal(interaction, { content: '', embeds: [{ title: '📋 Avertissements de ' + (target.user?.username || targetId), description: '**Total actif :** ' + active.length + '\n\n' + description, color: 0xd8b45a, timestamp: new Date().toISOString() }] });

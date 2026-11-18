@@ -9,7 +9,7 @@ if (!DISCORD_TOKEN) throw new Error('DISCORD_TOKEN est requis pour le service Ga
 const SITE_URL = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\/+$/, '') + '/';
 const MOVIX_API_URL = (process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\/+$/, '');
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
 function getTextChannel(guild, id, fallbackName) {

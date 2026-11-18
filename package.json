@@ -1,7 +1,7 @@
 {
-  "name": "cinebox-discord-bot",
+  "name": "movix-discord-bot",
   "version": "1.0.0",
-  "description": "Bot officiel du serveur Discord CinéBox",
+  "description": "Bot officiel du serveur Discord Movix",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/gateway.js",

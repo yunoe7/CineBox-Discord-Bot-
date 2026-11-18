@@ -430,7 +430,8 @@ module.exports = async function handler(req, res) {
     const task = (async () => {
       try {
         const channels = await discord('/guilds/' + interaction.guild_id + '/channels');
-        const configChannel = channels.find(channel => ['📋•journal-équipe', '📋・journal-équipe', '📋-journal-équipe'].includes(channel.name) && channel.type === 0);
+        const configuredChannelId = process.env.WELCOME_CONFIG_CHANNEL_ID;
+        const configChannel = (configuredChannelId && channels.find(channel => channel.id === configuredChannelId && channel.type === 0)) || channels.find(channel => ['📋•journal-équipe', '📋・journal-équipe', '📋-journal-équipe'].includes(channel.name) && channel.type === 0);
         if (!configChannel) throw new Error('Le salon privé 📋•journal-équipe est introuvable. Lance /setup pour créer la structure Movix.');
         const prefix = 'MOVIX_WELCOME_CONFIG:';
         let current = { welcomeEnabled: false, goodbyeEnabled: false, autoRoleEnabled: false, welcomeChannelId: null, goodbyeChannelId: null, newMemberRoleId: null };

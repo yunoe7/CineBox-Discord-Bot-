@@ -435,7 +435,7 @@ module.exports = async function handler(req, res) {
         const prefix = 'MOVIX_WELCOME_CONFIG:';
         let current = { welcomeEnabled: false, goodbyeEnabled: false, autoRoleEnabled: false, welcomeChannelId: null, goodbyeChannelId: null, newMemberRoleId: null };
         const topic = configChannel.topic || '';
-        const saved = topic.match(/MOVIX_WELCOME_CONFIG:(\{[^}]*\})/);
+        const saved = topic.match(/(?:MOVIX|CINEBOX)_WELCOME_CONFIG:(\{[^}]*\})/);
         if (saved) { try { current = Object.assign(current, JSON.parse(saved[1])); } catch {} }
         const validateChannel = id => !id || channels.some(channel => channel.id === id && channel.type === 0);
         if (welcomeChannelId && !validateChannel(welcomeChannelId)) throw new Error('Le salon de bienvenue doit être un salon textuel de ce serveur.');
@@ -449,7 +449,7 @@ module.exports = async function handler(req, res) {
         if (autoRoleEnabled !== undefined) current.autoRoleEnabled = autoRoleEnabled;
         if (newMemberRoleId !== undefined) current.newMemberRoleId = newMemberRoleId;
         const encoded = prefix + JSON.stringify(current);
-        const otherTopic = topic.replace(/(?:^|\s*)MOVIX_WELCOME_CONFIG:\{[^}]*\}/, '').trim();
+        const otherTopic = topic.replace(/(?:^|\s*)(?:MOVIX|CINEBOX)_WELCOME_CONFIG:\{[^}]*\}/, '').trim();
         const nextTopic = [otherTopic, encoded].filter(Boolean).join(' ').slice(0, 1024);
         await discord('/channels/' + configChannel.id, { method: 'PATCH', body: { topic: nextTopic } });
         const channelLabel = id => id ? '<#' + id + '>' : 'Non configuré';
@@ -494,7 +494,7 @@ module.exports = async function handler(req, res) {
       try {
         const secret = process.env.MOVIX_DISCORD_SYNC_SECRET || process.env.CINEBOX_API_SECRET;
         if (!secret) throw new Error('La liaison au site n’est pas encore configurée sur le bot.');
-        const response = await fetch((process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\\/+$/, '') + '/api/internal/discord/member', {
+        const response = await fetch((process.env.MOVIX_API_URL || 'https://main-api-production-1590f478.up.railway.app').replace(/\/+$/, '') + '/api/internal/discord/member', {
           method: 'POST',
           headers: {
             authorization: 'Bearer ' + secret,
@@ -508,7 +508,7 @@ module.exports = async function handler(req, res) {
           throw new Error('Le service de comptes Movix est temporairement indisponible (HTTP ' + response.status + ').');
         }
         const result = await response.json();
-        const siteUrl = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\\/+$/, '') + '/';
+        const siteUrl = (process.env.MOVIX_SITE_URL || 'https://movix.miami').replace(/\/+$/, '') + '/';
         const components = [{ type: 1, components: [
           { type: 2, style: 5, label: 'Ouvrir Movix', url: siteUrl },
           { type: 2, style: 5, label: 'Mon espace / connexion', url: siteUrl + 'connexion' }

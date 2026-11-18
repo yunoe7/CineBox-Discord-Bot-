@@ -49,6 +49,10 @@ const VOICE_CHANNELS = ['🔊・Le Grand Salon', '🔊・Séance privée', '🔊
 
 async function getOrCreateRole(guild, definition, created) {
   let role = guild.roles.cache.find(r => r.name === definition.name);
+  if (!role && definition.name === '💎 VIP Movix') {
+    role = guild.roles.cache.find(r => r.name === '💎 VIP CinéBox');
+    if (role) await role.setName(definition.name, 'Migration du rôle VIP vers Movix');
+  }
   if (!role) {
     role = await guild.roles.create({
       name: definition.name, color: definition.color, hoist: definition.hoist,
@@ -75,6 +79,12 @@ async function getOrCreateCategory(guild, name, overwrites, created) {
 
 async function getOrCreateText(guild, category, name, topic, created) {
   let channel = guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name === name);
+  if (!channel) {
+    const legacyNames = { '📢•actualités-movix': ['📢•actualités-cinébox'], '✨•découvrir-movix': ['✨•découvrir-cinébox'], '🧪•tests-movix': ['🧪•tests-cinébox'] };
+    const aliases = legacyNames[name] || [];
+    channel = guild.channels.cache.find(c => c.type === ChannelType.GuildText && aliases.includes(c.name));
+    if (channel) await channel.setName(name, 'Migration de la communauté vers Movix');
+  }
   if (!channel && name.includes('•')) {
     const legacyName = name.replace('•', '-');
     channel = guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.name === legacyName);

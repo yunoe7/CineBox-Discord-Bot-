@@ -38,7 +38,7 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addUserOption(o => o.setName('membre').setDescription('Membre à bannir').setRequired(true))
     .addStringOption(o => o.setName('raison').setDescription('Motif').setRequired(false).setMaxLength(450)),
-  new SlashCommandBuilder().setName('setup').setDescription('Installe ou répare la structure complète du serveur CinéBox.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('setup').setDescription('Installe ou répare la structure complète du serveur Movix.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('config-accueil').setDescription('Configure manuellement les messages de bienvenue et de départ.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon-bienvenue').setDescription('Salon où publier les arrivées').addChannelTypes(ChannelType.GuildText).setRequired(false))
@@ -47,14 +47,14 @@ const commands = [
     .addBooleanOption(o => o.setName('activer-depart').setDescription('Activer ou désactiver le message de départ').setRequired(false))
     .addBooleanOption(o => o.setName('role-automatique').setDescription('Attribuer automatiquement un rôle à l’arrivée').setRequired(false))
     .addRoleOption(o => o.setName('role-nouveau').setDescription('Rôle à attribuer si le rôle automatique est activé').setRequired(false)),
-  new SlashCommandBuilder().setName('reset-cinebox').setDescription('Supprime la structure CinéBox après confirmation.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-  new SlashCommandBuilder().setName('mon-compte').setDescription('Vérifie la liaison entre ton compte Discord et CineBox.'),
-  new SlashCommandBuilder().setName('vip').setDescription('Consulte ton pass VIP et sa date de validité sur CinéBox.'),
+  new SlashCommandBuilder().setName('reset-movix').setDescription('Supprime la structure Movix après confirmation.').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('mon-compte').setDescription('Vérifie la liaison entre ton compte Discord et Movix.'),
+  new SlashCommandBuilder().setName('vip').setDescription('Consulte ton pass VIP et sa date de validité sur Movix.'),
   new SlashCommandBuilder().setName('ping').setDescription('Vérifie que le bot répond.'),
-  new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes CinéBox.'),
+  new SlashCommandBuilder().setName('help').setDescription('Affiche les commandes Movix.'),
   new SlashCommandBuilder().setName('signaler').setDescription('Signale un bug ou un problème à l’équipe.')
     .addStringOption(o => o.setName('message').setDescription('Décris le problème').setRequired(true).setMaxLength(1500)),
-  new SlashCommandBuilder().setName('cloturer-sondage').setDescription('Clôture le dernier sondage CinéBox de ce salon et affiche le résultat.')
+  new SlashCommandBuilder().setName('cloturer-sondage').setDescription('Clôture le dernier sondage Movix de ce salon et affiche le résultat.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
   new SlashCommandBuilder().setName('sondage-cinema').setDescription('Lance un vote pour choisir le prochain film à regarder.')
     .addStringOption(o => o.setName('titre').setDescription('Question du sondage, par exemple : Film de vendredi ?').setRequired(true).setMaxLength(240))
@@ -94,7 +94,7 @@ const commands = [
     .addChannelOption(o => o.setName('salon').setDescription('Salon vocal de la séance').addChannelTypes(ChannelType.GuildVoice).setRequired(true))
     .addIntegerOption(o => o.setName('duree').setDescription('Durée en minutes (60 à 360, défaut 120)').setMinValue(60).setMaxValue(360).setRequired(false))
     .addStringOption(o => o.setName('description').setDescription('Informations complémentaires').setRequired(false).setMaxLength(500)),
-  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une amélioration pour CinéBox.')
+  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une amélioration pour Movix.')
     .addStringOption(o => o.setName('idee').setDescription('Décris ton idée').setRequired(true).setMaxLength(1500)),
 ].map(command => command.toJSON());
 
@@ -104,7 +104,7 @@ const commands = [
     ? Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID)
     : Routes.applicationCommands(CLIENT_ID);
   await rest.put(route, { body: commands });
-  console.log('Commandes CinéBox enregistrées.');
+  console.log('Commandes Movix enregistrées.');
 })().catch(error => {
   console.error(error);
   process.exit(1);
